@@ -6,6 +6,8 @@
 <title>شجرة العائلة</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Reem+Kufi:wght@400;500;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <style>
 :root{
   --bg:#F6F1E7;--bg2:#F6F1E7;--panel:#FFFDF8;--panel2:#EDE4CF;--line:#E6DCC3;--line2:#E2D6B8;
@@ -184,6 +186,9 @@ footer{max-width:1400px;margin:0 auto;padding:10px 22px 40px;display:flex;flex-w
   .hero .pat{display:none}
 }
 
+.blank{grid-column:1/-1;padding:56px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px}
+.blank h2{margin:0;font-family:'Reem Kufi',serif;font-size:28px;font-weight:600}
+.blank p{margin:0;color:var(--muted);font-size:16px;line-height:1.8;max-width:460px}
 #mnt{position:fixed;inset:0;z-index:200;background:#F6F1E7;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}
 #mnt[hidden],#adminBar[hidden],#mntBack[hidden]{display:none!important}
 #mnt .box{max-width:520px;display:flex;flex-direction:column;align-items:center;gap:16px}
@@ -223,9 +228,8 @@ body.prev-admin{padding-top:36px}
 <div class="in">
 <div>
 <div class="eyebrow">شجرة عائلة</div>
-<h1><em id="famName">[اسم العائلة]</em></h1>
-<p>أكثر من قرن ونصف من الأجيال في مكان واحد. اضغط على أي فرع لتدخل فيه، وابحث عن أي اسم، واعرف كيف يلتقي نسبك مع أي قريب.</p>
-<span class="demo">الأسماء والتواريخ تجريبية لعرض التصميم</span>
+<h1><em id="famName"></em></h1>
+<p>أجيال العائلة في مكان واحد. اضغط على أي فرع لتدخل فيه، وابحث عن أي اسم، واعرف كيف يلتقي نسبك مع أي قريب.</p>
 </div>
 <div class="stats" id="stats"></div>
 </div>
@@ -270,8 +274,8 @@ body.prev-admin{padding-top:36px}
 </div>
 
 <footer>
-<span>بيانات العائلة خاصة وتُعرض للأقارب المسجّلين فقط.</span>
-<span>آخر تحديث: [تاريخ التحديث]</span>
+<span id="footFam"></span>
+<span><a href="admin.html" style="color:inherit">دخول المشرفين</a></span>
 </footer>
 
 <div class="ov" id="ov" role="dialog" aria-modal="true" aria-label="البحث في العائلة">
@@ -288,39 +292,49 @@ body.prev-admin{padding-top:36px}
 <div class="toast" id="toast" role="status"></div>
 
 <script>
-(function(){
-const FAM = '[اسم العائلة]';
-document.getElementById('famName').textContent = FAM;
-
-/* ---------- demo data: large, deterministic ---------- */
-function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-const R = rng(1446);
-const NAMES=['محمد','عبدالله','عبدالرحمن','إبراهيم','أحمد','علي','صالح','عبدالعزيز','سعد','فهد','خالد','حمد','ناصر','سلمان','يوسف','عمر','عثمان','حسن','حسين','عبدالمحسن','عبداللطيف','عبدالكريم','منصور','سليمان','بدر','فيصل','تركي','سعود','عادل','ماجد','نايف','راشد','مشاري','زياد','ريان','عبدالإله','وليد','هشام','طلال','مازن','أنس','حمزة','معاذ','يزيد','عبدالملك','نواف','بندر','عيسى','موسى','جاسم','مبارك','ياسر'];
-const P=[]; const by={};
-function add(n,p,b){const x={id:P.length+1,n,p,b,kids:[]};P.push(x);by[x.id]=x;if(p)by[p].kids.push(x.id);return x;}
-const founder=add('حمد',0,1842);
-const queue=[founder]; const MAX=720;
-while(queue.length && P.length<MAX){
-  const f=queue.shift(); const depth=anc(f.id).length-1; if(depth>=6) continue;
-  let k = depth===0?6 : depth===1? 4+Math.floor(R()*3) : Math.floor(R()*(depth<4?5.2:4));
-  let year=f.b+23+Math.floor(R()*8);
-  const gf = by[f.p];
-  for(let i=0;i<k && P.length<MAX;i++){
-    if(year>2023) break;
-    let n;
-    if(i===0 && gf && R()<.55 && gf.n!==f.n) n=gf.n;
-    else { do{ n=NAMES[Math.floor(R()*(R()<.6?14:NAMES.length))]; }while(n===f.n || f.kids.some(c=>by[c].n===n)); }
-    const c=add(n,f.id,year); queue.push(c);
-    year+=2+Math.floor(R()*5);
-  }
+(async function(){
+if(document.readyState==='loading') await new Promise(r=>document.addEventListener('DOMContentLoaded',r,{once:true}));
+const asVisitor = new URLSearchParams(location.search).get('as')==='visitor';
+const SB = window.supabase.createClient(window.FT_CONFIG.url, window.FT_CONFIG.key, asVisitor?{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'ft-visitor-preview'}}:undefined);
+let site={}, rows=[];
+try{
+  const st0 = await SB.rpc('get_site_status'); if(st0.error) throw st0.error; site = st0.data||{};
+  const tr0 = await SB.rpc('get_tree'); if(tr0.error) throw tr0.error; rows = tr0.data||[];
+}catch(err){
+  document.querySelector('.wrap').innerHTML='<section class="card blank"><h2>تعذّر تحميل الشجرة</h2><p>تحقق من اتصالك بالإنترنت ثم حدّث الصفحة.</p></section>';
+  document.getElementById('stats').innerHTML='';
+  return;
 }
-P.forEach(x=>{ if(x.b<1938){x.d=Math.min(2023,x.b+58+Math.floor(R()*34));} else if(x.b<1962 && R()<.18){x.d=Math.min(2024,x.b+50+Math.floor(R()*20));} });
+const staffView = !!site.is_staff && !asVisitor;
+if(asVisitor && site.online===false) rows=[];
+const FAM = site.family_name || 'العائلة';
+document.getElementById('famName').textContent = FAM;
+const FAMT = FAM==='العائلة'?'شجرة العائلة':'شجرة عائلة '+FAM;
+document.getElementById('footFam').textContent = FAMT;
+document.getElementById('mntFam').textContent = FAMT;
+document.title = FAMT;
+window.__siteMode = {online: site.online!==false, msg: site.msg||'', back: site.back||'', viewer: staffView?'admin':'visitor'};
+if(window.applySiteMode) window.applySiteMode(window.__siteMode);
+
+const P=[]; const by={};
+rows.forEach(r=>{const x={id:r.id,n:r.first_name,p:r.father_id||0,b:r.birth_year||null,d:r.death_year||null,dead:!!r.is_dead||!!r.death_year,g:(r.gender||'m').trim(),kids:[]};P.push(x);by[x.id]=x;});
+P.forEach(x=>{if(x.p&&by[x.p])by[x.p].kids.push(x.id);});
+P.forEach(x=>x.kids.sort((a,b)=>(by[a].b||9999)-(by[b].b||9999)||a-b));
+const founder = P.find(x=>!x.p);
+if(!founder){
+  document.querySelector('.wrap').innerHTML='<section class="card blank"><svg width="64" height="64" viewBox="0 0 36 36" fill="none" stroke="#4F5D2F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 33V17"/><path d="M18 22l-6-5"/><path d="M18 19l6-5"/><circle cx="18" cy="9" r="4"/><circle cx="9" cy="14" r="3"/><circle cx="27" cy="11" r="3"/><path d="M11 33h14"/></svg><h2>الشجرة قيد الإعداد</h2><p>لم تُضف أسماء العائلة بعد. عُد إلينا قريبًا بإذن الله.</p></section>';
+  document.getElementById('stats').innerHTML='';
+  document.getElementById('openSearch').style.visibility='hidden';
+  document.getElementById('suggest').style.visibility='hidden';
+  return;
+}
 
 function anc(id){const r=[];let c=by[id];while(c){r.push(c.id);c=by[c.p];}return r;}
 const desc=id=>{let n=0;const s=[...by[id].kids];while(s.length){const c=s.pop();n++;s.push(...by[c].kids);}return n;};
 const gen=id=>anc(id).length;
 const short=(id,k=2)=>anc(id).slice(0,k).map(i=>by[i].n).join(' بن ');
-const yrs=x=>x.d?x.b+' – '+x.d:'مواليد '+x.b;
+const yrs=x=>x.dead?((x.b||x.d)?(x.b||'؟')+' – '+(x.d||'؟'):(x.g==='f'?'متوفاة رحمها الله':'متوفى رحمه الله')):(x.b?'مواليد '+x.b:'');
+const dot=t=>t?' · '+t:'';
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* branch colours: one per son of the founder */
@@ -332,12 +346,13 @@ const colorOf=id=>{const b=branchOf(id);const base=d3.color(bColor[b]);const g=g
 /* ---------- state ---------- */
 const st={sel:null,cmp:null,view:'fan',focus:founder.id,palMode:'go'};
 // sensible defaults: a deep person and a relative
-const deep=P.filter(x=>gen(x.id)===6);
-st.sel=(deep[3]||P[P.length-1]).id;
-st.cmp=(deep.find(x=>branchOf(x.id)===branchOf(st.sel)&&anc(x.id)[1]!==anc(st.sel)[1])||deep[deep.length-1]||P[5]).id;
+const maxG=Math.max(...P.map(x=>gen(x.id)));
+const deep=P.filter(x=>gen(x.id)===maxG);
+st.sel=(deep[0]||founder).id;
+st.cmp=(deep.find(x=>x.id!==st.sel&&anc(x.id)[1]!==anc(st.sel)[1])||deep.find(x=>x.id!==st.sel)||P.find(x=>x.id!==st.sel)||founder).id;
 
 /* ---------- stats & legend ---------- */
-const living=P.filter(x=>!x.d).length;
+const living=P.filter(x=>!x.dead).length;
 const maxGen=Math.max(...P.map(x=>gen(x.id)));
 document.getElementById('stats').innerHTML=
  `<div class="stat"><b>${P.length}</b><span>فردًا</span></div>`+
@@ -460,7 +475,7 @@ function buildTree(){
 function showTip(e,id){
   if(matchMedia('(hover:none)').matches)return;
   const x=by[id]; const r=stage.getBoundingClientRect();
-  tip.innerHTML=`<b>${esc(x.n)}</b><span>${esc(short(id,4))}</span><br><span>${yrs(x)} · الجيل ${gen(id)} · ${desc(id)} من الذرية</span>`;
+  tip.innerHTML=`<b>${esc(x.n)}</b><span>${esc(short(id,4))}</span><br><span>الجيل ${gen(id)} · ${desc(id)} من الذرية${dot(yrs(x))}</span>`;
   let left=e.clientX-r.left+14, top=e.clientY-r.top+14;
   if(left>r.width-250)left-=270; if(top>r.height-110)top-=110;
   tip.style.left=left+'px'; tip.style.top=top+'px'; tip.style.opacity=1;
@@ -486,11 +501,11 @@ function renderCrumbs(){
 function renderPerson(){
   const x=by[st.sel]; const f=by[x.p]; const a=anc(x.id);
   const grand=x.kids.reduce((n,c)=>n+by[c].kids.length,0);
-  const lin=a.map(i=>`<span>${esc(by[i].n)}</span>`).join('<span class="bn">بن</span>')+' <span style="color:var(--gold)">'+esc(FAM)+'</span>';
+  const lin=a.map(i=>`<span>${esc(by[i].n)}</span>`).map((h,i)=>i===0?h:'<span class="bn">'+(i===1&&x.g==='f'?'بنت':'بن')+'</span>'+h).join('')+' <span style="color:var(--gold)">'+esc(FAM)+'</span>';
   const sibs=f?f.kids.filter(c=>c!==x.id):[];
   document.getElementById('person').innerHTML=
    `<div class="ph"><span class="ava" style="background:${colorOf(x.id)}">${esc(x.n[0])}</span><div><h2>${esc(x.n)}</h2>
-     <div class="tag"><i style="background:${bColor[branchOf(x.id)]}"></i>${x.id===founder.id?'الجد المؤسس':'فرع '+esc(by[branchOf(x.id)].n)} · الجيل ${a.length} · ${yrs(x)}</div></div></div>
+     <div class="tag"><i style="background:${bColor[branchOf(x.id)]}"></i>${x.id===founder.id?'الجد المؤسس':'فرع '+esc(by[branchOf(x.id)].n)} · الجيل ${a.length}${dot(yrs(x))}</div></div></div>
     <div class="pb">
      <div><div class="k">النسب الكامل</div><div class="lineage">${lin}</div></div>
      <div class="nums"><div><b>${x.kids.length}</b><span>الأبناء</span></div><div><b>${grand}</b><span>الأحفاد</span></div><div><b>${desc(x.id)}</b><span>الذرية</span></div><div><b>${sibs.length}</b><span>الإخوة</span></div></div>
@@ -601,26 +616,29 @@ renderPerson(); renderKin(); mount.w=stage.clientWidth; mount();
 </script>
 <div id="mnt" hidden role="alert"><div class="box">
 <div class="seal"><svg width="52" height="52" viewBox="0 0 36 36" fill="none" stroke="#4F5D2F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 33V17"/><path d="M18 22l-6-5"/><path d="M18 19l6-5"/><circle cx="18" cy="9" r="4"/><circle cx="9" cy="14" r="3"/><circle cx="27" cy="11" r="3"/><path d="M11 33h14"/></svg></div>
-<span class="fam">شجرة عائلة [اسم العائلة]</span>
+<span class="fam" id="mntFam">شجرة العائلة</span>
 <h1>الموقع متوقف مؤقتًا</h1>
 <p id="mntMsg"></p>
 <span class="back" id="mntBack" hidden></span>
-<small>هل أنت مشرف؟ سجّل دخولك للمتابعة.</small>
+<small>هل أنت مشرف؟ <a href="admin.html" style="color:#4F5D2F">سجّل دخولك للمتابعة</a>.</small>
 </div></div>
 <div id="adminBar" hidden>معاينة المدير · الموقع متوقف للزوار</div>
 <script>
 (function(){
+ var cur=null;
  function apply(m){
-  var off=m&&m.online===false, admin=m&&m.viewer==='admin';
+  cur=Object.assign({},cur||{},m);
+  var off=cur.online===false, admin=cur.viewer==='admin';
   document.getElementById('mnt').hidden=!(off&&!admin);
   document.getElementById('adminBar').hidden=!(off&&admin);
   document.body.classList.toggle('prev-admin',!!(off&&admin));
   document.body.style.overflow=(off&&!admin)?'hidden':'';
-  document.getElementById('mntMsg').textContent=(m&&m.msg)||'';
-  var b=document.getElementById('mntBack'); b.hidden=!(m&&m.back); b.textContent=m&&m.back?('نعود '+m.back):'';
+  document.getElementById('mntMsg').textContent=cur.msg||'';
+  var b=document.getElementById('mntBack'); b.hidden=!cur.back; b.textContent=cur.back?('نعود '+cur.back):'';
  }
- window.addEventListener('message',function(e){if(e.data&&e.data.type==='site-mode')apply(e.data);});
- try{var saved=JSON.parse(localStorage.getItem('shajaratna-site')||'null');if(saved){saved.viewer='visitor';apply(saved);}}catch(_){}
+ window.applySiteMode=apply;
+ window.addEventListener('message',function(e){if(e.origin===location.origin&&e.data&&e.data.type==='site-mode')apply(e.data);});
+ if(window.__siteMode)apply(window.__siteMode);
 })();
 </script>
 </body>
