@@ -6,6 +6,7 @@ const SB = window.supabase.createClient(window.FT_CONFIG.url, window.FT_CONFIG.k
 let ME=null;              // staff row of the signed-in user
 let P=[], by={}, founder=null, B=[];
 let SUPS=[], REQS=[], LOG=[];
+let EVS=[], ALB=[], PH={};
 let SET={};
 const S={view:'overview',q:'',branch:'all',genF:'all',status:'all',limit:25,rqTab:'all',fresh:null,pvDev:'d',pvViewer:'visitor'};
 
@@ -52,7 +53,10 @@ const I={
  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/>',
  eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
  power:'<path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/>',
- trash:'<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/>'
+ trash:'<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/>',
+ cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+ img:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
+ star:'<path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/>'
 };
 const ic=(n,s=18,c='currentColor')=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
 const avatar=(id,size)=>`<span class="av" style="background:${colorOf(id)}${size?`;width:${size}px;height:${size}px`:''}">${esc(by[id]?by[id].n[0]:'؟')}</span>`;
@@ -78,10 +82,14 @@ async function loadAll(){
   SB.from('requests').select('*').eq('status','pending').order('created_at',{ascending:false}),
   SB.from('audit_log').select('*').order('created_at',{ascending:false}).limit(300),
   SB.from('site_settings').select('*').eq('id',1).maybeSingle(),
-  isAdmin()?SB.from('staff').select('*').order('id'):Promise.resolve({data:[]})
+  isAdmin()?SB.from('staff').select('*').order('id'):Promise.resolve({data:[]}),
+  SB.from('events').select('*').order('starts_at',{ascending:false}),
+  SB.from('albums').select('*'),
+  SB.from('photos').select('*').order('created_at')
  ];
- const [pp,tr,rq,lg,st,sf]=await Promise.all(q);
- for(const r of [pp,tr,rq,lg,st,sf]) if(r.error) throw r.error;
+ const [pp,tr,rq,lg,st,sf,ev,al,ph]=await Promise.all(q);
+ for(const r of [pp,tr,rq,lg,st,sf,ev,al,ph]) if(r.error) throw r.error;
+ EVS=ev.data||[];ALB=al.data||[];PH={};(ph.data||[]).forEach(p=>(PH[p.album_id]=PH[p.album_id]||[]).push(p));
  P=[];by={};
  const det={};(pp.data||[]).forEach(r=>det[r.id]=r);
  const base=new Map();(tr.data||[]).forEach(r=>base.set(r.id,r));(pp.data||[]).forEach(r=>base.set(r.id,r));
@@ -100,7 +108,7 @@ async function refresh(){try{await loadAll();}catch(e){toast(errMsg(e),true);}re
 const visibleReqs=()=>REQS.filter(r=>{const t=r.father_id||r.target_id;return by[t]&&inScope(t);});
 function renderNav(){
  const admin=isAdmin();
- const items=[['overview','home','نظرة عامة'],['members','users','الأفراد'],['requests','inbox','الطلبات',visibleReqs().length],...(admin?[['site','globe','الموقع والنشر',SET.online===false?'متوقف':0],['sups','shield','المشرفون',SUPS.length,'g']]:[]),['log','clock','سجل التعديلات'],...(admin?[['settings','gear','الخصوصية والإعدادات']]:[])];
+ const items=[['overview','home','نظرة عامة'],['members','users','الأفراد'],['requests','inbox','الطلبات',visibleReqs().length],['events','cal','الفعاليات',EVS.filter(e=>evEnd(e)>=new Date()).length,'g'],['photos','img','الصور'],...(admin?[['site','globe','الموقع والنشر',SET.online===false?'متوقف':0],['sups','shield','المشرفون',SUPS.length,'g']]:[]),['log','clock','سجل التعديلات'],...(admin?[['settings','gear','الخصوصية والإعدادات']]:[])];
  const s=curSup();
  document.getElementById('side').innerHTML=items.map(([k,i,t,c,cl])=>`<button type="button" class="nav ${S.view===k?'on':''}" data-view="${k}">${ic(i)}<span>${t}</span>${c?`<span class="c ${cl||''}">${c}</span>`:''}</button>`).join('')+
  `<div class="sidefoot">${s?`<b>صلاحياتك</b>مشرف على فرع ${esc(short(s.scope_root,2))} (${scopeSize(s.scope_root)} فردًا). ${can('direct')?'إضافاتك تُنشر مباشرة.':'إضافاتك تُراجع من المدير قبل النشر.'}`:`<b>المدير العام</b>صلاحيات كاملة على ${P.length} فردًا${B.length?' و'+B.length+' فروع':''}.`}</div>`;
@@ -232,7 +240,7 @@ function render(){
  if(!ME)return;
  if(!isAdmin()&&['sups','settings','site'].includes(S.view))S.view='overview';
  renderNav();
- const v={site:vSite,overview:vOverview,members:vMembers,requests:vRequests,sups:vSups,log:vLog,settings:vSettings}[S.view]||vOverview;
+ const v={site:vSite,events:vEvents,photos:vPhotos,overview:vOverview,members:vMembers,requests:vRequests,sups:vSups,log:vLog,settings:vSettings}[S.view]||vOverview;
  main.innerHTML=v();
  renderPill(); if(S.view==='site')setupPreview();
  bindMembers();
@@ -368,6 +376,201 @@ async function saveSup(){
  catch(err){if(D){D.busy=false;drawSup();}toast(/duplicate key|staff_email_key/.test(err.message||'')?'هذا البريد مسجّل لمشرف آخر':errMsg(err),true);}
 }
 
+/* ================= events & photos ================= */
+const KIND={wedding:'زواج',gathering:'جمعة عائلية',meeting:'لقاء',other:'مناسبة'};
+const KBADGE={wedding:'b-gold',gathering:'b-ok',meeting:'b-blue',other:'b-mute'};
+const TZ='Asia/Riyadh';
+const fmtD=(o,h)=>new Intl.DateTimeFormat(h?'ar-SA-u-ca-islamic-umalqura-nu-latn':'ar-u-ca-gregory-nu-latn',Object.assign({timeZone:TZ},o));
+const gDate=d=>fmtD({weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(d);
+const hDate=d=>fmtD({day:'numeric',month:'long',year:'numeric'},true).format(d);
+const tOf=d=>fmtD({hour:'numeric',minute:'2-digit'}).format(d);
+const localParts=d=>{const p=new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d);const g=t=>p.find(x=>x.type===t).value;return {date:g('year')+'-'+g('month')+'-'+g('day'),time:g('hour')+':'+g('minute')};};
+const atRiyadh=(date,time)=>new Date(date+'T'+(time||'00:00')+':00+03:00');
+const photoUrl=path=>window.FT_CONFIG.url+'/storage/v1/object/public/photos/'+path.split('/').map(encodeURIComponent).join('/');
+const pc=n=>n===1?'صورة واحدة':n===2?'صورتان':(n>=3&&n<=10)?n+' صور':n+' صورة';
+const canMod=r=>isAdmin()||(r&&ME&&r.created_by_email===ME.email);
+const evEnd=e=>e.ends_at?new Date(e.ends_at):new Date(new Date(e.starts_at).getTime()+3*3600e3);
+const albumOfEvent=id=>ALB.find(a=>a.event_id===id);
+const personLabel=id=>by[id]?short(id,3):'';
+
+function vEvents(){
+ const now=new Date();
+ const up=EVS.filter(e=>evEnd(e)>=now).sort((a,b)=>new Date(a.starts_at)-new Date(b.starts_at));
+ const past=EVS.filter(e=>evEnd(e)<now).sort((a,b)=>new Date(b.starts_at)-new Date(a.starts_at));
+ const row=e=>{const s=new Date(e.starts_at);const al=albumOfEvent(e.id);const n=al?(PH[al.id]||[]).length:0;
+  return `<div class="li"><span class="ic" style="background:var(--soft);flex-direction:column;width:54px;height:54px;border-radius:14px;line-height:1.1"><b style="font-family:'Reem Kufi',serif;font-size:20px">${esc(fmtD({day:'numeric'}).format(s))}</b><span style="font-size:11px;color:var(--muted)">${esc(fmtD({month:'short'}).format(s))}</span></span>
+   <div class="tx"><span class="badge ${KBADGE[e.kind]||'b-mute'}" style="height:22px;font-size:11.5px">${esc(KIND[e.kind]||'مناسبة')}</span> <b>${esc(e.title)}</b>
+    <div class="sub">${esc(gDate(s))} · ${esc(hDate(s))} · ${esc(tOf(s))}${e.location_name?' · '+esc(e.location_name):''}</div>
+    <div class="sub">أضافها ${esc(e.created_by_name||'—')}${n?' · '+pc(n):''}</div></div>
+   <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+    <button class="btn sm" type="button" data-evph="${e.id}">${ic('img',15)}${n?'الصور':'إضافة صور'}</button>
+    ${canMod(e)?`<button class="btn sm" type="button" data-evedit="${e.id}">${ic('edit',15)}تعديل</button>`:''}
+    <a class="btn sm" href="events.html#event-${e.id}" target="_blank" rel="noopener" title="عرض في الموقع">${ic('eye',15)}</a></span></div>`;};
+ return `<div class="ph"><div><h1>الفعاليات</h1><p>الأعراس والجمعات واللقاءات التي تظهر في تقويم الموقع</p></div>
+  <div class="sp"><button class="btn p" type="button" data-act="addEv">${ic('plus')}إضافة فعالية</button></div></div>
+  <section class="card"><div class="ch"><h2>القادمة</h2><span class="sub" style="margin-inline-start:auto">${up.length}</span></div><div class="list">${up.length?up.map(row).join(''):'<div class="empty">لا توجد فعاليات قادمة. أضف أول فعالية لتظهر في تقويم العائلة.</div>'}</div></section>
+  ${past.length?`<section class="card" style="margin-top:18px"><div class="ch"><h2>السابقة</h2><span class="sub" style="margin-inline-start:auto">أضف صورها لتظهر في الذكريات</span></div><div class="list">${past.map(row).join('')}</div></section>`:''}`;
+}
+
+function drawEvent(){
+ const e=D.edit?EVS.find(x=>x.id===D.edit):null;
+ const lp=e?localParts(new Date(e.starts_at)):null, le=e&&e.ends_at?localParts(new Date(e.ends_at)):null;
+ const v=D.v||{title:e?e.title:'',date:lp?lp.date:'',time:lp?lp.time:'20:00',end:le?le.time:'',loc:e?e.location_name||'':'',map:e?e.map_url||'':'',desc:e?e.description||'':''};
+ D.v=v; if(D.kind==null)D.kind=e?e.kind:'gathering'; if(D.host===undefined)D.host=e?e.host_person_id:null;
+ drawer.innerHTML=`<div class="dh"><div><h3 id="dTitle">${e?'تعديل الفعالية':'إضافة فعالية'}</h3><div class="sub" style="margin-top:4px">تظهر في تقويم الموقع مباشرة</div></div><button class="x" type="button" data-act="close" aria-label="إغلاق">${ic('x')}</button></div>
+ <form class="db" onsubmit="return false" novalidate>
+  <div class="f"><span class="lb">نوع الفعالية</span><div class="segm" data-evkind>${Object.entries(KIND).map(([k,t])=>`<button type="button" class="${D.kind===k?'on':''}" data-v="${k}">${t.replace(' عائلية','')}</button>`).join('')}</div></div>
+  <div class="f"><label for="evT">العنوان</label><input class="inp" id="evT" maxlength="120" value="${esc(v.title)}" placeholder="${D.kind==='wedding'?'مثال: زواج عبدالله بن سعد':'مثال: جمعة العيد في بيت الجد'}"><span class="err" id="eT">اكتب عنوان الفعالية</span></div>
+  <div class="row2">
+   <div class="f"><label for="evD">التاريخ</label><input class="inp" id="evD" type="date" value="${esc(v.date)}"><span class="h" id="evH">${v.date?esc(hDate(atRiyadh(v.date,'12:00'))):'اختر التاريخ'}</span><span class="err" id="eD">اختر التاريخ</span></div>
+   <div class="f"><label for="evS">الوقت</label><input class="inp" id="evS" type="time" value="${esc(v.time)}"></div>
+  </div>
+  <div class="f"><label for="evE">وقت الانتهاء <span class="sub">(اختياري)</span></label><input class="inp" id="evE" type="time" value="${esc(v.end)}"></div>
+  <div class="f"><label for="evL">المكان <span class="sub">(اختياري)</span></label><input class="inp" id="evL" maxlength="160" value="${esc(v.loc)}" placeholder="مثال: قاعة الريم، الهفوف"></div>
+  <div class="f"><label for="evM">رابط الموقع في الخرائط <span class="sub">(اختياري)</span></label><input class="inp" id="evM" dir="ltr" maxlength="600" value="${esc(v.map)}" placeholder="https://maps.app.goo.gl/..."><span class="h">من خرائط Google أو Apple: اضغط «مشاركة» ثم انسخ الرابط.</span><span class="err" id="eM">الرابط يجب أن يبدأ بـ https://</span></div>
+  <div class="f"><span class="lb">صاحب الدعوة <span class="sub">(اختياري، من الشجرة)</span></span>
+   ${D.host&&by[D.host]?`<div class="chosen">${avatar(D.host,30)}<span>${esc(personLabel(D.host))}</span><button class="btn sm" type="button" data-act="clrHost">تغيير</button></div>`:
+   `<div class="pick"><input class="inp" id="hq" type="search" autocomplete="off" placeholder="ابحث بالاسم والنسب"><div class="opts" id="ho"></div></div>`}</div>
+  <div class="f"><label for="evX">تفاصيل <span class="sub">(اختياري)</span></label><textarea class="inp" id="evX" maxlength="3000" placeholder="مثال: العشاء بعد صلاة العشاء، والدعوة عامة لكل العائلة">${esc(v.desc)}</textarea></div>
+ </form>
+ <div class="df"><button class="btn p" type="button" data-act="saveEv" ${D.busy?'disabled':''}>${D.busy?'جارٍ الحفظ…':e?'حفظ التعديلات':'إضافة للتقويم'}</button><button class="btn" type="button" data-act="close">إلغاء</button>
+  ${e&&canMod(e)?`<button class="btn no" type="button" data-act="delEv" style="margin-inline-start:auto">${ic('trash',15)}${D.delArm?'اضغط مرة ثانية للتأكيد':'حذف'}</button>`:''}</div>`;
+ const keep=()=>{D.v={title:val('evT'),date:val('evD'),time:val('evS'),end:val('evE'),loc:val('evL'),map:val('evM'),desc:val('evX')};};
+ drawer.querySelector('[data-evkind]').onclick=ev=>{const b=ev.target.closest('button');if(!b)return;keep();D.kind=b.dataset.v;drawEvent();};
+ const dI=document.getElementById('evD');dI.oninput=()=>{document.getElementById('evH').textContent=dI.value?hDate(atRiyadh(dI.value,'12:00')):'اختر التاريخ';};
+ const hq=document.getElementById('hq'),ho=document.getElementById('ho');
+ if(hq)hq.oninput=()=>{const q=norm(hq.value);if(!q){ho.classList.remove('on');return;}
+  const res=P.filter(x=>norm(fullName(x.id)).includes(q)).sort((a,b)=>gen(a.id)-gen(b.id)).slice(0,10);
+  ho.innerHTML=res.length?res.map(x=>`<button type="button" class="opt" data-host="${x.id}">${avatar(x.id)}<span>${esc(x.n)}<small>${esc(fullName(x.id).split(' بن ').slice(1,4).join(' بن ')||'الجد المؤسس')}</small></span></button>`).join(''):'<div class="empty" style="padding:14px">لا يوجد اسم مطابق</div>';ho.classList.add('on');};
+ D.keep=keep;
+}
+const val=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+async function saveEvent(){
+ D.keep();const v=D.v;let ok=true;const show=(id,on)=>{const e=document.getElementById(id);if(e)e.classList.toggle('on',on);if(on)ok=false;};
+ show('eT',!v.title);show('eD',!/^\d{4}-\d{2}-\d{2}$/.test(v.date));show('eM',!!v.map&&!/^https?:\/\//i.test(v.map));if(!ok)return;
+ const s=atRiyadh(v.date,v.time||'00:00');let en=null;
+ if(v.end){en=atRiyadh(v.date,v.end);if(en<=s)en=new Date(en.getTime()+864e5);}
+ const row={title:v.title,kind:D.kind,starts_at:s.toISOString(),ends_at:en?en.toISOString():null,location_name:v.loc||null,map_url:v.map||null,description:v.desc||null,host_person_id:D.host||null};
+ D.busy=true;drawEvent();
+ try{const r=D.edit?await SB.from('events').update(row).eq('id',D.edit).select('id').maybeSingle():await SB.from('events').insert(row).select('id').single();
+  if(r.error)throw r.error;if(!r.data)throw {message:'permission denied'};
+  const was=D.edit;closeDrawer();S.view='events';await refresh();toast(was?'تم حفظ التعديلات':'أُضيفت الفعالية للتقويم');}
+ catch(err){if(D){D.busy=false;drawEvent();}toast(errMsg(err),true);}
+}
+async function deleteEvent(){
+ if(!D.delArm){D.keep();D.delArm=true;drawEvent();return;}
+ const {error}=await SB.from('events').delete().eq('id',D.edit);if(error){toast(errMsg(error),true);return;}
+ closeDrawer();await refresh();toast('حُذفت الفعالية. صورها باقية في الذكريات');
+}
+async function openEventPhotos(id){
+ const e=EVS.find(x=>x.id===+id);if(!e)return;
+ let al=albumOfEvent(e.id);
+ if(!al){const {data,error}=await SB.from('albums').insert({title:e.title,event_id:e.id}).select().single();if(error){toast(errMsg(error),true);return;}await loadAll();al=data;}
+ S.view='photos';S.album=al.id;render();window.scrollTo({top:0});
+}
+
+/* ---------- albums ---------- */
+function vPhotos(){
+ if(S.album&&ALB.find(a=>a.id===S.album))return vAlbum();
+ S.album=null;
+ const total=Object.values(PH).reduce((n,l)=>n+l.length,0);
+ const albums=[...ALB].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+ const card=a=>{const ps=PH[a.id]||[];const c=ps.find(p=>p.id===a.cover_photo_id)||ps[0];const e=a.event_id&&EVS.find(x=>x.id===a.event_id);
+  return `<button type="button" class="card albc" data-alb="${a.id}"><span class="cvr">${c?`<img src="${esc(photoUrl(c.thumb_path))}" alt="" loading="lazy">`:ic('img',34,'#C9BC9C')}</span>
+   <span class="tx"><b>${esc(a.title)}</b><span class="sub">${pc(ps.length)}${e?' · '+esc(fmtD({day:'numeric',month:'short',year:'numeric'}).format(new Date(e.starts_at))):a.year?' · '+a.year:''}</span>${!ps.length?'<span class="badge b-gold" style="height:22px;font-size:11.5px">فارغ، لا يظهر في الموقع</span>':''}</span></button>`;};
+ const pastNoAlbum=EVS.filter(e=>evEnd(e)<new Date()&&!albumOfEvent(e.id)).slice(0,6);
+ return `<div class="ph"><div><h1>الصور</h1><p>${ALB.length} ألبوم · ${pc(total)}. كل ألبوم فيه صور يظهر في صفحة الذكريات</p></div>
+  <div class="sp"><button class="btn p" type="button" data-act="addAlbum">${ic('plus')}ألبوم جديد</button></div></div>
+  ${pastNoAlbum.length?`<div class="note" style="background:var(--goldbg);color:#5E4716;margin-bottom:18px;flex-wrap:wrap;align-items:center">${ic('info',18,'#8A6A26')}<span>فعاليات انتهت ولم تُضف صورها:</span>${pastNoAlbum.map(e=>`<button class="btn sm" type="button" data-evph="${e.id}">${esc(e.title)}</button>`).join('')}</div>`:''}
+  ${albums.length?`<div class="albg">${albums.map(card).join('')}</div>`:`<section class="card"><div class="empty">لا توجد ألبومات بعد. أنشئ ألبومًا للصور القديمة، أو افتح أي فعالية واضغط «إضافة صور».</div></section>`}`;
+}
+function vAlbum(){
+ const a=ALB.find(x=>x.id===S.album);const ps=PH[a.id]||[];const e=a.event_id&&EVS.find(x=>x.id===a.event_id);const mine=canMod(a);
+ return `<button class="lnk" type="button" data-act="albBack" style="margin:0 0 10px">‹ كل الألبومات</button>
+  <div class="ph"><div><h1>${esc(a.title)}</h1><p>${e?'ألبوم فعالية · '+esc(gDate(new Date(e.starts_at))):a.year?'سنة '+a.year:'ألبوم'} · ${pc(ps.length)}${a.description?'<br>'+esc(a.description):''}</p></div>
+  <div class="sp"><label class="btn p" for="upl" style="cursor:pointer">${ic('plus')}رفع صور</label><input id="upl" type="file" accept="image/*" multiple hidden>
+   ${mine?`<button class="btn" type="button" data-act="editAlbum">${ic('edit',16)}تعديل</button><button class="btn no" type="button" data-act="delAlbum">${ic('trash',16)}${S.albDel?'اضغط مرة ثانية لحذف الألبوم وصوره':'حذف الألبوم'}</button>`:''}
+   ${ps.length?`<a class="btn" href="memories.html#album-${a.id}" target="_blank" rel="noopener">${ic('eye',16)}عرض في الموقع</a>`:''}</div></div>
+  <div id="upst"></div>
+  ${ps.length?`<div class="phg">${ps.map(p=>`<figure class="phi ${p.id===a.cover_photo_id?'cov':''}"><img src="${esc(photoUrl(p.thumb_path))}" alt="" loading="lazy">
+   ${p.caption?`<figcaption>${esc(p.caption)}</figcaption>`:''}
+   <span class="pa">${p.id===a.cover_photo_id?'<span class="badge b-ok" style="height:24px">الغلاف</span>':mine?`<button type="button" class="pb" data-cover="${p.id}" title="اجعلها غلاف الألبوم">${ic('star',15)}</button>`:''}
+    ${canMod(p)?`<button type="button" class="pb" data-cap="${p.id}" title="تعليق">${ic('edit',15)}</button><button type="button" class="pb" data-delph="${p.id}" title="حذف">${ic('trash',15)}</button>`:''}</span></figure>`).join('')}</div>`
+  :`<label class="card drop" for="upl">${ic('img',40,'#C9BC9C')}<b>ارفع صور ${esc(a.title)}</b><span class="sub">اختر صورًا من جوالك أو جهازك، ويمكنك اختيار أكثر من صورة مرة واحدة</span></label>`}`;
+}
+function drawAlbum(){
+ const a=D.edit?ALB.find(x=>x.id===D.edit):null;
+ drawer.innerHTML=`<div class="dh"><div><h3 id="dTitle">${a?'تعديل الألبوم':'ألبوم جديد'}</h3><div class="sub" style="margin-top:4px">${a&&a.event_id?'ألبوم مرتبط بفعالية':'للصور القديمة أو أي مناسبة غير مسجلة في التقويم'}</div></div><button class="x" type="button" data-act="close" aria-label="إغلاق">${ic('x')}</button></div>
+ <form class="db" onsubmit="return false" novalidate>
+  <div class="f"><label for="alT">اسم الألبوم</label><input class="inp" id="alT" maxlength="120" value="${esc(a?a.title:'')}" placeholder="مثال: صور الجد حمد القديمة"><span class="err" id="eAT">اكتب اسم الألبوم</span></div>
+  ${a&&a.event_id?'':`<div class="f"><label for="alY">السنة <span class="sub">(اختياري)</span></label><input class="inp" id="alY" inputmode="numeric" value="${a&&a.year?a.year:''}" placeholder="مثال: 1995"><span class="err" id="eAY">سنة غير صحيحة</span></div>`}
+  <div class="f"><label for="alX">وصف <span class="sub">(اختياري)</span></label><textarea class="inp" id="alX" maxlength="1000">${esc(a?a.description||'':'')}</textarea></div>
+ </form>
+ <div class="df"><button class="btn p" type="button" data-act="saveAlbum">${a?'حفظ':'إنشاء الألبوم'}</button><button class="btn" type="button" data-act="close">إلغاء</button></div>`;
+}
+async function saveAlbum(){
+ const t=val('alT'),yRaw=val('alY'),x=val('alX');let ok=true;const show=(id,on)=>{const e=document.getElementById(id);if(e)e.classList.toggle('on',on);if(on)ok=false;};
+ const y=yRaw?toYear(yRaw):null;show('eAT',!t);show('eAY',Number.isNaN(y)||(y!=null&&(y<1900||y>YEAR)));if(!ok)return;
+ const row={title:t,description:x||null};if(document.getElementById('alY'))row.year=y;
+ const r=D.edit?await SB.from('albums').update(row).eq('id',D.edit).select().maybeSingle():await SB.from('albums').insert(row).select().single();
+ if(r.error||!r.data){toast(r.error?errMsg(r.error):'ليست لديك صلاحية لهذا الإجراء',true);return;}
+ const was=D.edit;closeDrawer();S.view='photos';S.album=r.data.id;await refresh();toast(was?'تم الحفظ':'تم إنشاء الألبوم. ارفع صوره الآن');
+}
+function drawCaption(){
+ const p=Object.values(PH).flat().find(x=>x.id===D.photo);
+ drawer.innerHTML=`<div class="dh"><div><h3 id="dTitle">تعليق على الصورة</h3></div><button class="x" type="button" data-act="close" aria-label="إغلاق">${ic('x')}</button></div>
+ <div class="db"><img src="${esc(photoUrl(p.thumb_path))}" alt="" style="width:100%;border-radius:14px"><div class="f"><label for="cpT">التعليق <span class="sub">(يظهر تحت الصورة)</span></label><textarea class="inp" id="cpT" maxlength="300" placeholder="مثال: الجد حمد مع أبنائه في مزرعة العائلة">${esc(p.caption||'')}</textarea></div></div>
+ <div class="df"><button class="btn p" type="button" data-act="saveCap">حفظ</button><button class="btn" type="button" data-act="close">إلغاء</button></div>`;
+}
+
+/* ---------- upload ---------- */
+function loadImg(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file);const i=new Image();i.onload=()=>{res(i);};i.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('صيغة الصورة غير مدعومة'));};i.src=u;});}
+async function resize(src,w,h,max,q){const k=Math.min(1,max/Math.max(w,h));const cw=Math.max(1,Math.round(w*k)),ch=Math.max(1,Math.round(h*k));
+ const c=document.createElement('canvas');c.width=cw;c.height=ch;const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(src,0,0,cw,ch);
+ const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',q));if(!blob)throw new Error('تعذّرت معالجة الصورة');return {blob,w:cw,h:ch};}
+async function prepImage(file){
+ let src,w,h;
+ try{src=await createImageBitmap(file,{imageOrientation:'from-image'});w=src.width;h=src.height;}
+ catch(_){src=await loadImg(file);w=src.naturalWidth;h=src.naturalHeight;}
+ const full=await resize(src,w,h,2048,.86), thumb=await resize(src,w,h,640,.8);
+ if(src.close)src.close();
+ return {full,thumb};
+}
+let uploading=false;
+async function uploadFiles(files){
+ if(uploading)return;const a=ALB.find(x=>x.id===S.album);if(!a)return;
+ files=[...files].filter(f=>/^image\//.test(f.type)||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name));
+ if(!files.length){toast('اختر ملفات صور',true);return;}
+ uploading=true;let done=0,fail=0;const st=()=>{const el=document.getElementById('upst');if(el)el.innerHTML=`<div class="note" style="background:var(--olivebg);color:var(--olive2);margin-bottom:16px;align-items:center">${ic('img',18,'#3E4A24')}<span>جارٍ رفع الصور: ${done+fail} من ${files.length}${fail?' · تعذّر '+fail:''}</span><span class="upbar"><i style="width:${(done+fail)/files.length*100}%"></i></span></div>`;};
+ st();
+ const queue=[...files];
+ const worker=async()=>{while(queue.length){const f=queue.shift();
+  try{const {full,thumb}=await prepImage(f);const id=Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+   const path=a.id+'/'+id+'.jpg',tpath=a.id+'/t_'+id+'.jpg';
+   const u1=await SB.storage.from('photos').upload(path,full.blob,{contentType:'image/jpeg',cacheControl:'31536000',upsert:false});if(u1.error)throw u1.error;
+   const u2=await SB.storage.from('photos').upload(tpath,thumb.blob,{contentType:'image/jpeg',cacheControl:'31536000',upsert:false});if(u2.error){await SB.storage.from('photos').remove([path]);throw u2.error;}
+   const {error}=await SB.from('photos').insert({album_id:a.id,path,thumb_path:tpath,width:thumb.w,height:thumb.h});if(error){await SB.storage.from('photos').remove([path,tpath]);throw error;}
+   done++;}catch(err){fail++;console.error(err);}
+  st();}};
+ await Promise.all([worker(),worker()]);
+ uploading=false;await refresh();
+ toast(fail?`رُفع ${pc(done)}، وتعذّر رفع ${pc(fail)}`:`رُفع ${pc(done)} بنجاح`,!!fail);
+}
+async function deletePhoto(id,btn){
+ if(btn.dataset.armed!=='1'){btn.dataset.armed='1';btn.classList.add('arm');btn.title='اضغط مرة ثانية للحذف';toast('اضغط مرة ثانية لتأكيد حذف الصورة');return;}
+ const p=Object.values(PH).flat().find(x=>x.id===id);if(!p)return;
+ const {error}=await SB.from('photos').delete().eq('id',id);if(error){toast(errMsg(error),true);return;}
+ await SB.storage.from('photos').remove([p.path,p.thumb_path]);
+ await refresh();toast('حُذفت الصورة');
+}
+async function deleteAlbum(){
+ if(!S.albDel){S.albDel=true;render();return;}
+ S.albDel=false;const a=ALB.find(x=>x.id===S.album);const ps=PH[a.id]||[];
+ const {error}=await SB.from('albums').delete().eq('id',a.id);if(error){toast(errMsg(error),true);render();return;}
+ const paths=ps.flatMap(p=>[p.path,p.thumb_path]);for(let i=0;i<paths.length;i+=100)await SB.storage.from('photos').remove(paths.slice(i,i+100));
+ S.album=null;await refresh();toast('حُذف الألبوم');
+}
+
 /* ================= site online / offline + preview ================= */
 function modeMsg(){return {type:'site-mode',online:SET.online!==false,msg:SET.maintenance_msg||'',back:SET.back_text||'',viewer:S.pvViewer};}
 function postTo(fr){try{fr&&fr.contentWindow&&fr.contentWindow.postMessage(modeMsg(),location.origin);}catch(_){}}
@@ -451,13 +654,21 @@ fpv.addEventListener('click',e=>{const t=e.target.closest('[data-fv],[data-fd],[
 
 /* ================= global events ================= */
 scrim.onclick=closeDrawer;
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='upl'&&ME){uploadFiles(e.target.files);e.target.value='';}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(fpv.classList.contains('on')){fpv.className='fpv';fpv.innerHTML='';}else if(D)closeDrawer();}});
 document.addEventListener('click',async e=>{
  if(!ME)return;
- const t=e.target.closest('[data-view],[data-act],[data-edit],[data-addchild],[data-ok],[data-no],[data-rqtab],[data-perm],[data-set],[data-rmsup],[data-father],[data-sc],[data-pp],[data-pvv],[data-pvd]');
+ const t=e.target.closest('[data-view],[data-act],[data-edit],[data-addchild],[data-ok],[data-no],[data-rqtab],[data-perm],[data-set],[data-rmsup],[data-father],[data-sc],[data-pp],[data-pvv],[data-pvd],[data-evph],[data-evedit],[data-alb],[data-cover],[data-cap],[data-delph],[data-host]');
  if(!t||fpv.contains(t))return;
  const d=t.dataset;
- if(d.view){S.view=d.view;render();window.scrollTo({top:0});return;}
+ if(d.view){S.view=d.view;S.album=null;S.albDel=false;render();window.scrollTo({top:0});return;}
+ if(d.evph){openEventPhotos(d.evph);return;}
+ if(d.evedit){D={mode:'ev',edit:+d.evedit};drawEvent();drawer.classList.add('on');scrim.classList.add('on');return;}
+ if(d.host){D.keep();D.host=+d.host;drawEvent();return;}
+ if(d.alb){S.album=+d.alb;S.albDel=false;render();window.scrollTo({top:0});return;}
+ if(d.cover){const {data,error}=await SB.from('albums').update({cover_photo_id:+d.cover}).eq('id',S.album).select('id').maybeSingle();if(error||!data){toast(error?errMsg(error):'ليست لديك صلاحية لهذا الإجراء',true);return;}await refresh();toast('تم تعيين غلاف الألبوم');return;}
+ if(d.cap){D={mode:'cap',photo:+d.cap};drawCaption();drawer.classList.add('on');scrim.classList.add('on');setTimeout(()=>{const c=document.getElementById('cpT');c&&c.focus();},250);return;}
+ if(d.delph){deletePhoto(+d.delph,t);return;}
  if(d.father){const keep=collect();D.father=+d.father;drawHTML();restore(keep);return;}
  if(d.sc){keepSup();D.sc=+d.sc;drawSup();return;}
  if(d.pp){D.pp[d.pp]=!D.pp[d.pp];t.setAttribute('aria-checked',D.pp[d.pp]);return;}
@@ -492,6 +703,16 @@ document.addEventListener('click',async e=>{
  if(a==='saveFam'){const v=document.getElementById('famIn').value.trim();if(!v){toast('اكتب اسم العائلة',true);return;}await saveSettings({family_name:v},'تم حفظ اسم العائلة');return;}
  if(a==='saveMe'){const v=document.getElementById('meIn').value.trim();if(!v){toast('اكتب اسمك',true);return;}
   const {error}=await SB.from('staff').update({display_name:v}).eq('id',ME.id);if(error){toast(errMsg(error),true);return;}ME.display_name=v;setMe();toast('تم حفظ اسمك');render();return;}
+ if(a==='addEv'){D={mode:'ev',edit:null};drawEvent();drawer.classList.add('on');scrim.classList.add('on');return;}
+ if(a==='saveEv'){saveEvent();return;}
+ if(a==='delEv'){deleteEvent();return;}
+ if(a==='clrHost'){D.keep();D.host=null;drawEvent();return;}
+ if(a==='addAlbum'){D={mode:'album',edit:null};drawAlbum();drawer.classList.add('on');scrim.classList.add('on');return;}
+ if(a==='editAlbum'){D={mode:'album',edit:S.album};drawAlbum();drawer.classList.add('on');scrim.classList.add('on');return;}
+ if(a==='saveAlbum'){saveAlbum();return;}
+ if(a==='delAlbum'){deleteAlbum();return;}
+ if(a==='albBack'){S.album=null;S.albDel=false;render();return;}
+ if(a==='saveCap'){const v=document.getElementById('cpT').value.trim();const {data,error}=await SB.from('photos').update({caption:v||null}).eq('id',D.photo).select('id').maybeSingle();if(error||!data){toast(error?errMsg(error):'ليست لديك صلاحية لهذا الإجراء',true);return;}closeDrawer();await refresh();toast('تم حفظ التعليق');return;}
  if(a==='goOff'){goOffDrawer();return;}
  if(a==='confirmOff'){const patch={online:false,maintenance_msg:document.getElementById('omsg').value,back_text:document.getElementById('oback').value,allow_supervisors:D.allow};
   const ok=await saveSettings(patch,'تم إيقاف الموقع. الزوار يشوفون صفحة الصيانة الآن');if(ok){S.pvViewer='visitor';closeDrawer();S.view='site';await refresh();}return;}

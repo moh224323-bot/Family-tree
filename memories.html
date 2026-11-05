@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الذكريات · شجرة العائلة</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Reem+Kufi:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="site.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<style>
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:18px}
+.albums{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px}
+.al{display:flex;flex-direction:column;text-decoration:none;color:inherit;border-radius:22px;overflow:hidden;background:var(--panel);border:1px solid var(--line);transition:box-shadow .2s,transform .2s}
+.al:hover{box-shadow:0 14px 34px rgba(43,42,36,.1);transform:translateY(-2px)}
+.al .cv{position:relative;aspect-ratio:4/3;background:var(--soft);display:grid;grid-template-columns:2fr 1fr;grid-template-rows:1fr 1fr;gap:3px}
+.al .cv img{width:100%;height:100%;object-fit:cover;display:block}
+.al .cv img:first-child{grid-row:1/3}
+.al .cv.one{grid-template-columns:1fr;grid-template-rows:1fr}
+.al .cv.one img:first-child{grid-row:auto}
+.al .cv .n{position:absolute;bottom:10px;left:10px;background:rgba(43,42,36,.72);color:#fff;font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;display:flex;align-items:center;gap:6px}
+.al .cv .ph{grid-column:1/-1;grid-row:1/-1;display:flex;align-items:center;justify-content:center;color:#C9BC9C}
+.al .tx{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px}
+.al .tx b{font-size:17px;font-weight:600;line-height:1.4}
+.al .tx .sub{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+
+/* album page */
+.ahead{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end;margin-bottom:18px}
+.ahead h2{margin:6px 0 6px;font-family:'Reem Kufi',serif;font-size:clamp(26px,4vw,40px);font-weight:600;line-height:1.2}
+.ahead p{margin:0;color:var(--muted);line-height:1.8;max-width:640px;white-space:pre-line}
+.ahead .acts{margin-inline-start:auto;display:flex;gap:8px;flex-wrap:wrap}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--olive);text-decoration:none;font-weight:600;font-size:14px}
+.masonry{columns:4 260px;column-gap:12px}
+.masonry button{display:block;width:100%;margin:0 0 12px;padding:0;border:0;background:var(--soft);border-radius:14px;overflow:hidden;cursor:zoom-in;break-inside:avoid;position:relative}
+.masonry img{width:100%;height:auto;display:block}
+.masonry .cap{position:absolute;inset:auto 0 0 0;padding:22px 12px 10px;background:linear-gradient(transparent,rgba(20,20,16,.65));color:#fff;font-size:13px;text-align:right;opacity:0;transition:.2s}
+.masonry button:hover .cap{opacity:1}
+
+/* lightbox */
+.lb{position:fixed;inset:0;z-index:70;background:rgba(20,19,16,.96);display:none;flex-direction:column;color:#F3ECDD;touch-action:pan-y}
+.lb.on{display:flex}
+.lb .tb{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.lb .tb .c{font-size:14px;opacity:.85;margin-inline-end:auto}
+.lb .bt{width:44px;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;text-decoration:none}
+.lb .bt:hover{background:rgba(255,255,255,.14)}
+.lb .st{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;padding:0 64px}
+.lb .st img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;user-select:none;-webkit-user-drag:none}
+.lb .nv{position:absolute;top:50%;transform:translateY(-50%)}
+.lb .nv.p{right:12px}.lb .nv.n{left:12px}
+.lb .cp{padding:12px 18px 18px;text-align:center;font-size:15px;line-height:1.7;min-height:52px}
+.lb .cp small{display:block;opacity:.6;font-size:12.5px}
+@media (max-width:640px){
+  .albums{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .al{border-radius:16px}
+  .al .tx{padding:10px 12px 12px}
+  .al .tx b{font-size:14.5px}
+  .al .tx .badge{display:none}
+  .masonry{columns:2;column-gap:8px}
+  .masonry button{margin-bottom:8px;border-radius:10px}
+  .lb .st{padding:0}
+  .lb .nv{display:none}
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="in">
+<a class="brand" href="index.html" aria-label="الرئيسية"><svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="#4F5D2F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 33V17"/><path d="M18 22l-6-5"/><path d="M18 19l6-5"/><circle cx="18" cy="9" r="4"/><circle cx="9" cy="14" r="3"/><circle cx="27" cy="11" r="3"/><path d="M11 33h14"/></svg><span>شجرتنا</span></a>
+<nav class="mainnav" aria-label="أقسام الموقع"><a href="index.html">النسب</a><a href="events.html">الفعاليات</a><a href="memories.html" class="on" aria-current="page">الذكريات</a></nav>
+</div></header>
+
+<section class="hero" id="hero">
+<svg class="pat" aria-hidden="true" preserveAspectRatio="xMidYMid slice" viewBox="0 0 1400 360"><defs><pattern id="p" width="56" height="56" patternUnits="userSpaceOnUse"><path d="M28 6l6 16 16 6-16 6-6 16-6-16-16-6 16-6z" fill="none" stroke="#E6DCC3" stroke-width="1"/></pattern><radialGradient id="fade" cx="15%" cy="50%" r="70%"><stop offset="0" stop-color="#F6F1E7" stop-opacity="0"/><stop offset="1" stop-color="#F6F1E7" stop-opacity="1"/></radialGradient></defs><rect width="1400" height="360" fill="url(#p)"/><rect width="1400" height="360" fill="url(#fade)"/></svg>
+<div class="in">
+<div><div class="eyebrow">موسوعة الصور</div><h1><em>الذكريات</em></h1><p>صور الأعراس والجمعات واللقاءات، محفوظة في ألبومات لكل مناسبة، ومعها صور الأيام الأولى.</p></div>
+<div class="stats" id="stats"></div>
+</div>
+</section>
+
+<main class="wrap" id="app"><section class="card blank"><p>جارٍ التحميل…</p></section></main>
+<footer><span data-famt></span><span><a href="admin.html">دخول المشرفين</a></span></footer>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="عرض الصورة">
+ <div class="tb"><span class="c" id="lbC"></span><a class="bt" id="lbDl" href="#" target="_blank" rel="noopener" aria-label="فتح الصورة بالحجم الكامل" title="الحجم الكامل"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg></a><button class="bt" type="button" data-lb="x" aria-label="إغلاق"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+ <div class="st" id="lbSt"><button class="bt nv p" type="button" data-lb="p" aria-label="السابقة"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button><img id="lbImg" alt=""><button class="bt nv n" type="button" data-lb="n" aria-label="التالية"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button></div>
+ <div class="cp" id="lbCp"></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<div id="mnt" hidden role="alert"><div class="box">
+<div class="seal"><svg width="52" height="52" viewBox="0 0 36 36" fill="none" stroke="#4F5D2F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 33V17"/><path d="M18 22l-6-5"/><path d="M18 19l6-5"/><circle cx="18" cy="9" r="4"/><circle cx="9" cy="14" r="3"/><circle cx="27" cy="11" r="3"/><path d="M11 33h14"/></svg></div>
+<span class="fam" data-famt>شجرة العائلة</span><h1>الموقع متوقف مؤقتًا</h1><p id="mntMsg"></p><span class="back" id="mntBack" hidden></span>
+<small>هل أنت مشرف؟ <a href="admin.html" style="color:#4F5D2F">سجّل دخولك للمتابعة</a>.</small>
+</div></div>
+<div id="adminBar" hidden>معاينة المدير · الموقع متوقف للزوار</div>
+
+<script>
+(async function(){
+const {SB, esc, D, KIND, photoUrl, pc} = window.FT;
+const app=document.getElementById('app');
+const imgIc='<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>';
+let site, A=[], P={}, EV={};
+try{
+  site=await window.FT.boot();
+  document.title='الذكريات · '+site.FAMT;
+  const [al,ph,ev]=await Promise.all([
+    SB.from('albums').select('*'),
+    SB.from('photos').select('id,album_id,path,thumb_path,width,height,caption,created_at').order('created_at'),
+    SB.from('events').select('id,title,kind,starts_at')
+  ]);
+  for(const r of [al,ph,ev]) if(r.error) throw r.error;
+  (ev.data||[]).forEach(e=>EV[e.id]=Object.assign(e,{s:new Date(e.starts_at)}));
+  (ph.data||[]).forEach(p=>(P[p.album_id]=P[p.album_id]||[]).push(p));
+  A=(al.data||[]).filter(a=>(P[a.id]||[]).length).map(a=>{const e=a.event_id&&EV[a.event_id];
+    const when=e?e.s:(a.year?new Date(Date.UTC(a.year,0,1,12)):new Date(a.created_at));
+    return Object.assign(a,{ev:e||null,when,yr:+D.ymd(when).slice(0,4)});}).sort((a,b)=>b.when-a.when);
+}catch(err){ app.innerHTML='<section class="card blank"><h2>تعذّر تحميل الصور</h2><p>تحقق من اتصالك بالإنترنت ثم حدّث الصفحة.</p></section>'; return; }
+
+const total=A.reduce((n,a)=>n+P[a.id].length,0);
+const years=[...new Set(A.map(a=>a.yr))].sort((a,b)=>b-a);
+document.getElementById('stats').innerHTML=`<div class="stat"><b>${A.length}</b><span>ألبوم</span></div><div class="stat"><b>${total}</b><span>صورة</span></div>${years.length?`<div class="stat"><b>${years.length}</b><span>${years.length===1?'سنة':'سنوات'}</span></div>`:''}`;
+
+let F={kind:'all',year:'all'};
+const coverOf=a=>{const ps=P[a.id];const c=ps.find(p=>p.id===a.cover_photo_id)||ps[0];return [c,...ps.filter(p=>p!==c)].slice(0,3);};
+const whenText=a=>a.ev?D.full(a.ev.s)+' · '+D.hijri(a.ev.s):(a.year?'سنة '+a.year:'');
+
+function renderList(){
+  document.getElementById('hero').hidden=false;
+  if(!A.length){ app.innerHTML=`<section class="card blank"><span style="color:#C9BC9C">${imgIc}</span><h2>لا توجد صور بعد</h2><p>عندما تُرفع صور الأعراس والجمعات ستظهر هنا في ألبومات مرتبة.</p></section>`; return; }
+  const kinds=[['all','الكل'],['wedding','الأعراس'],['gathering','الجمعات'],['meeting','اللقاءات'],['old','صور قديمة']].filter(([k])=>k==='all'||A.some(a=>k==='old'?!a.ev:a.ev&&a.ev.kind===k));
+  const list=A.filter(a=>(F.kind==='all'||(F.kind==='old'?!a.ev:a.ev&&a.ev.kind===F.kind))&&(F.year==='all'||a.yr===+F.year));
+  app.innerHTML=`<div class="bar"><div class="chips">${kinds.map(([k,t])=>`<button type="button" class="chip ${F.kind===k?'on':''}" data-k="${k}">${t}</button>`).join('')}</div>
+   ${years.length>1?`<select class="btn sm" id="yr" aria-label="السنة" style="margin-inline-start:auto"><option value="all">كل السنوات</option>${years.map(y=>`<option value="${y}" ${F.year==y?'selected':''}>${y}</option>`).join('')}</select>`:''}</div>
+   <div class="albums">${list.map(a=>{const c=coverOf(a);return `<a class="al" href="#album-${a.id}">
+     <div class="cv ${c.length<3?'one':''}">${(c.length<3?c.slice(0,1):c).map(p=>`<img src="${esc(photoUrl(p.thumb_path))}" alt="" loading="lazy">`).join('')}<span class="n">${pc(P[a.id].length)}</span></div>
+     <div class="tx">${a.ev?`<span><span class="badge k-${esc(a.ev.kind)}">${esc(KIND[a.ev.kind]||'مناسبة')}</span></span>`:''}<b>${esc(a.title)}</b><span class="sub">${esc(whenText(a))}</span></div></a>`;}).join('')}</div>
+   ${list.length?'':'<section class="card blank" style="padding:28px"><p>لا توجد ألبومات بهذا التصنيف.</p></section>'}`;
+  const y=document.getElementById('yr'); if(y) y.onchange=()=>{F.year=y.value;renderList();};
+}
+let cur=null;
+function renderAlbum(id){
+  const a=A.find(x=>x.id===+id); if(!a){ location.hash=''; return; }
+  cur=a; document.getElementById('hero').hidden=true; window.scrollTo({top:0});
+  const ps=P[a.id];
+  app.innerHTML=`<a class="back" href="#">‹ كل الألبومات</a>
+   <div class="ahead"><div>${a.ev?`<span class="badge k-${esc(a.ev.kind)}">${esc(KIND[a.ev.kind]||'مناسبة')}</span>`:''}<h2>${esc(a.title)}</h2><p>${esc(whenText(a))}${a.description?'\n'+esc(a.description):''}</p></div>
+    <div class="acts"><span class="sub">${pc(ps.length)}</span>${a.ev?`<a class="btn sm" href="events.html#event-${a.ev.id}">تفاصيل الفعالية</a>`:''}</div></div>
+   <div class="masonry">${ps.map((p,i)=>`<button type="button" data-i="${i}" aria-label="عرض الصورة ${i+1}"><img src="${esc(photoUrl(p.thumb_path))}" alt="${esc(p.caption||'')}" loading="lazy" ${p.width&&p.height?`width="${p.width}" height="${p.height}"`:''}>${p.caption?`<span class="cap">${esc(p.caption)}</span>`:''}</button>`).join('')}</div>`;
+}
+function route(){ closeLb(); const m=location.hash.match(/^#album-(\d+)/); if(m) renderAlbum(m[1]); else { cur=null; renderList(); } }
+window.addEventListener('hashchange',route);
+
+/* lightbox */
+const lb=document.getElementById('lb'), img=document.getElementById('lbImg');
+let li=0;
+function showLb(i){ const ps=P[cur.id]; li=(i+ps.length)%ps.length; const p=ps[li];
+  img.src=photoUrl(p.path); img.alt=p.caption||'';
+  document.getElementById('lbDl').href=photoUrl(p.path);
+  document.getElementById('lbC').textContent=(li+1)+' / '+ps.length;
+  document.getElementById('lbCp').innerHTML=(p.caption?esc(p.caption):'')+`<small>${esc(cur.title)}</small>`;
+  const nx=ps[(li+1)%ps.length]; if(nx){ const pre=new Image(); pre.src=photoUrl(nx.path); }
+  lb.classList.add('on'); document.body.style.overflow='hidden'; }
+function closeLb(){ lb.classList.remove('on'); document.body.style.overflow=''; img.removeAttribute('src'); }
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-i],[data-lb],[data-k]'); if(!t) return;
+  if(t.dataset.i){ showLb(+t.dataset.i); return; }
+  if(t.dataset.k){ F.kind=t.dataset.k; renderList(); return; }
+  const a=t.dataset.lb; if(a==='x') closeLb(); else if(a==='n') showLb(li+1); else if(a==='p') showLb(li-1);
+});
+lb.addEventListener('click',e=>{ if(e.target===lb||e.target.id==='lbSt') closeLb(); });
+document.addEventListener('keydown',e=>{ if(!lb.classList.contains('on')) return; if(e.key==='Escape') closeLb(); if(e.key==='ArrowLeft') showLb(li+1); if(e.key==='ArrowRight') showLb(li-1); });
+let tx=null; lb.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;},{passive:true});
+lb.addEventListener('touchend',e=>{ if(tx==null) return; const dx=e.changedTouches[0].clientX-tx; tx=null; if(Math.abs(dx)>50) showLb(li+(dx>0?1:-1)); },{passive:true});
+
+route();
+})();
+</script>
+</body>
+</html>

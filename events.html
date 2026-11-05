@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الفعاليات · شجرة العائلة</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Reem+Kufi:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="site.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<style>
+/* spotlight: the next event */
+.spot{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:26px;align-items:center;padding:26px}
+.dblock{width:118px;border-radius:20px;background:var(--olive);color:#fff;text-align:center;padding:14px 8px;display:flex;flex-direction:column;gap:2px}
+.dblock .wd{font-size:13px;opacity:.85}
+.dblock .dn{font-family:'Reem Kufi',serif;font-size:46px;font-weight:600;line-height:1}
+.dblock .mn{font-size:15px;font-weight:600}
+.dblock .hj{margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.25);font-size:12px;opacity:.9}
+.spot h3{margin:6px 0 8px;font-family:'Reem Kufi',serif;font-size:clamp(24px,3.4vw,34px);font-weight:600;line-height:1.25}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;color:var(--muted);font-size:14.5px}
+.meta span{display:inline-flex;align-items:center;gap:7px}
+.cd{text-align:center;padding:14px 18px;border-radius:18px;background:var(--goldbg);color:#5E4716;min-width:120px}
+.cd b{display:block;font-family:'Reem Kufi',serif;font-size:40px;font-weight:600;line-height:1}
+.cd span{font-size:13px}
+.spot .acts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px;padding-top:4px}
+
+.grid{display:grid;grid-template-columns:400px minmax(0,1fr);gap:22px;align-items:start;margin-top:22px}
+@media (max-width:1020px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+/* month calendar */
+.cal{padding:18px}
+.cal .hd{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.cal .hd b{font-family:'Reem Kufi',serif;font-size:20px;font-weight:600}
+.cal .hd .hs{font-size:12.5px;color:var(--faint)}
+.cal .nav{margin-inline-start:auto;display:flex;gap:6px}
+.ib{width:38px;height:38px;border-radius:11px;border:1px solid var(--line2);background:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.ib:hover{border-color:var(--olive)}
+.cg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cg .wd{font-size:11.5px;color:var(--faint);text-align:center;padding:4px 0}
+.cd2{aspect-ratio:1;border-radius:11px;border:0;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:14px;position:relative}
+.cd2:hover{background:var(--soft)}
+.cd2.out{color:#BDB4A0}
+.cd2.today{box-shadow:inset 0 0 0 1.5px var(--olive);font-weight:700}
+.cd2.sel{background:var(--olive);color:#fff}
+.cd2 .dots{display:flex;gap:3px;height:6px}
+.cd2 .dots i{width:6px;height:6px;border-radius:50%}
+.cal .lg{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:12px;color:var(--muted)}
+.cal .lg i{width:8px;height:8px;border-radius:50%;display:inline-block;margin-inline-end:5px}
+.cal .sub2{margin-top:12px;padding:12px;border-radius:14px;background:var(--soft);font-size:13px;line-height:1.7;color:var(--muted)}
+
+/* list */
+.list{display:flex;flex-direction:column;gap:12px}
+.ev{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:16px;align-items:center;padding:16px;cursor:pointer;text-align:right;border:1px solid var(--line);background:var(--panel);border-radius:18px;width:100%}
+.ev:hover{border-color:var(--line2);box-shadow:0 8px 24px rgba(43,42,36,.06)}
+.ev .db{border-radius:14px;background:var(--soft);text-align:center;padding:8px 4px}
+.ev .db b{display:block;font-family:'Reem Kufi',serif;font-size:28px;font-weight:600;line-height:1.05}
+.ev .db span{font-size:12px;color:var(--muted)}
+.ev h4{margin:4px 0 4px;font-size:17px;font-weight:600}
+.ev .meta{font-size:13px;gap:4px 14px}
+.ev .go{color:var(--faint)}
+.ev.past .db{background:#EFEBE1}
+.ev .ph{font-size:12px;color:var(--olive);font-weight:600}
+.filt{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+
+/* dialog content */
+.dlg{position:relative}
+.dh{padding:24px 24px 16px;display:flex;gap:18px;align-items:flex-start;border-bottom:1px solid var(--line)}
+.dh .dblock{width:96px}
+.dh .dblock .dn{font-size:38px}
+.dh h3{margin:6px 0 0;font-family:'Reem Kufi',serif;font-size:26px;font-weight:600;line-height:1.3;padding-inline-end:36px}
+.dbody{padding:18px 24px 24px;display:flex;flex-direction:column;gap:16px}
+.row{display:flex;gap:12px;align-items:flex-start;font-size:15px;line-height:1.7}
+.row .ic{width:38px;height:38px;flex:none;border-radius:12px;background:var(--soft);display:flex;align-items:center;justify-content:center;color:var(--olive)}
+.row small{display:block;color:var(--faint);font-size:12.5px}
+.desc{white-space:pre-line;font-size:15px;line-height:1.9;color:var(--text);padding:14px 16px;border-radius:14px;background:var(--bg)}
+.dacts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.addcal{position:relative}
+.menu{position:absolute;bottom:calc(100% + 6px);right:0;left:0;background:var(--panel);border:1px solid var(--line2);border-radius:14px;box-shadow:0 16px 40px rgba(43,42,36,.16);padding:6px;display:none;z-index:3}
+.menu.on{display:block}
+.menu a{display:flex;flex-direction:column;padding:10px 12px;border-radius:10px;text-decoration:none;font-size:14px;font-weight:500}
+.menu a small{color:var(--faint);font-size:12px;font-weight:400}
+.menu a:hover{background:var(--soft)}
+.strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.strip img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block;background:var(--soft)}
+
+@media (max-width:640px){
+  .spot{grid-template-columns:auto minmax(0,1fr);padding:18px;gap:16px}
+  .dblock{width:92px}.dblock .dn{font-size:36px}
+  .cd{grid-column:1/-1;display:flex;align-items:baseline;justify-content:center;gap:8px;padding:10px}
+  .cd b{font-size:28px;display:inline}
+  .ev{grid-template-columns:62px minmax(0,1fr);padding:12px;gap:12px}
+  .ev .go{display:none}
+  .dh{padding:18px 18px 14px}
+  .dbody{padding:16px 18px 20px}
+  .dacts{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="in">
+<a class="brand" href="index.html" aria-label="الرئيسية"><svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="#4F5D2F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 33V17"/><path d="M18 22l-6-5"/><path d="M18 19l6-5"/><circle cx="18" cy="9" r="4"/><circle cx="9" cy="14" r="3"/><circle cx="27" cy="11" r="3"/><path d="M11 33h14"/></svg><span>شجرتنا</span></a>
+<nav class="mainnav" aria-label="أقسام الموقع"><a href="index.html">النسب</a><a href="events.html" class="on" aria-current="page">الفعاليات</a><a href="memories.html">الذكريات</a></nav>
+<a class="tbtn" id="subBtn" href="#" title="اشترك في تقويم العائلة لتصلك الفعاليات الجديدة تلقائيًا"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M12 13v5M9.5 15.5h5"/></svg><span class="long">اشترك في التقويم</span></a>
+</div></header>
+
+<section class="hero">
+<svg class="pat" aria-hidden="true" preserveAspectRatio="xMidYMid slice" viewBox="0 0 1400 360"><defs><pattern id="p" width="56" height="56" patternUnits="userSpaceOnUse"><path d="M28 6l6 16 16 6-16 6-6 16-6-16-16-6 16-6z" fill="none" stroke="#E6DCC3" stroke-width="1"/></pattern><radialGradient id="fade" cx="15%" cy="50%" r="70%"><stop offset="0" stop-color="#F6F1E7" stop-opacity="0"/><stop offset="1" stop-color="#F6F1E7" stop-opacity="1"/></radialGradient></defs><rect width="1400" height="360" fill="url(#p)"/><rect width="1400" height="360" fill="url(#fade)"/></svg>
+<div class="in">
+<div><div class="eyebrow">تقويم العائلة</div><h1><em>الفعاليات</em></h1><p>الأعراس والجمعات واللقاءات في مكان واحد. أضف أي فعالية لتقويم جوالك ليصلك تذكير قبلها بيوم وقبلها بساعة.</p></div>
+<div class="stats" id="stats"></div>
+</div>
+</section>
+
+<main class="wrap" id="app"><section class="card blank"><p>جارٍ التحميل…</p></section></main>
+
+<footer><span data-famt></span><span><a href="admin.html">دخول المشرفين</a></span></footer>
+
+<div class="ov" id="ov" role="dialog" aria-modal="true" aria-labelledby="dTitle"><div class="dlg" id="dlg"></div></div>
+<div class="toast" id="toast" role="status"></div>
+
+<div id="mnt" hidden role="alert"><div class="box">
+<div class="seal"><svg width="52" height="52" viewBox="0 0 36 36" fill="none" stroke="#4F5D2F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 33V17"/><path d="M18 22l-6-5"/><path d="M18 19l6-5"/><circle cx="18" cy="9" r="4"/><circle cx="9" cy="14" r="3"/><circle cx="27" cy="11" r="3"/><path d="M11 33h14"/></svg></div>
+<span class="fam" data-famt>شجرة العائلة</span><h1>الموقع متوقف مؤقتًا</h1><p id="mntMsg"></p><span class="back" id="mntBack" hidden></span>
+<small>هل أنت مشرف؟ <a href="admin.html" style="color:#4F5D2F">سجّل دخولك للمتابعة</a>.</small>
+</div></div>
+<div id="adminBar" hidden>معاينة المدير · الموقع متوقف للزوار</div>
+
+<script>
+(async function(){
+const {SB, esc, D, KIND, photoUrl, toast, pc} = window.FT;
+const app = document.getElementById('app');
+const KC = {wedding:'#C9A75E', gathering:'#7E8F4E', meeting:'#5C8BA8', other:'#B9AE96'};
+const ic = (p,s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const I = {
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  pin:'<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  moon:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  prev:'<path d="M9 6l6 6-6 6"/>', next:'<path d="M15 6l-6 6 6 6"/>',
+  img:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
+  host:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>'
+};
+
+const host = location.host;
+const subUrl = 'webcal://' + host + '/api/ics';
+document.getElementById('subBtn').onclick = e => { e.preventDefault(); openSubscribe(); };
+
+let site, E=[], albums={}, photosBy={}, hosts={};
+try{
+  site = await window.FT.boot();
+  document.title = 'الفعاليات · ' + site.FAMT;
+  const [ev, al, ph] = await Promise.all([
+    SB.from('events').select('*').order('starts_at'),
+    SB.from('albums').select('id,event_id,title,cover_photo_id'),
+    SB.from('photos').select('id,album_id,thumb_path').order('created_at')
+  ]);
+  for(const r of [ev,al,ph]) if(r.error) throw r.error;
+  E = (ev.data||[]).map(e=>Object.assign(e,{s:new Date(e.starts_at), en:e.ends_at?new Date(e.ends_at):null}));
+  (al.data||[]).forEach(a=>{ if(a.event_id) albums[a.event_id]=a; });
+  (ph.data||[]).forEach(p=>{ (photosBy[p.album_id]=photosBy[p.album_id]||[]).push(p); });
+  const hostIds=[...new Set(E.map(e=>e.host_person_id).filter(Boolean))];
+  if(hostIds.length){ const t=await SB.rpc('get_tree'); (t.data||[]).forEach(p=>hosts[p.id]=p); }
+}catch(err){
+  app.innerHTML='<section class="card blank"><h2>تعذّر تحميل الفعاليات</h2><p>تحقق من اتصالك بالإنترنت ثم حدّث الصفحة.</p></section>';
+  return;
+}
+
+const now = new Date();
+const endOf = e => e.en || new Date(e.s.getTime()+3*3600e3);
+const upcoming = E.filter(e=>endOf(e)>=now).sort((a,b)=>a.s-b.s);
+const past = E.filter(e=>endOf(e)<now).sort((a,b)=>b.s-a.s);
+const thisMonth = E.filter(e=>D.ymd(e.s).slice(0,7)===D.ymd(now).slice(0,7)).length;
+document.getElementById('stats').innerHTML =
+  `<div class="stat"><b>${upcoming.length}</b><span>فعالية قادمة</span></div>`+
+  `<div class="stat"><b>${thisMonth}</b><span>هذا الشهر</span></div>`+
+  `<div class="stat"><b>${past.length}</b><span>فعالية سابقة</span></div>`;
+
+const hostName = e => { const h=hosts[e.host_person_id]; if(!h) return ''; const f=hosts[h.father_id]; return h.first_name+(f?' بن '+f.first_name:''); };
+const timeText = e => e.en ? D.time(e.s)+' – '+D.time(e.en) : D.time(e.s);
+const daysTo = e => { const a=D.ymd(e.s), b=D.ymd(now); return Math.round((Date.parse(a)-Date.parse(b))/864e5); };
+const cdText = n => n<=0?'اليوم':n===1?'غدًا':n===2?'بعد يومين':n<=10?'بعد '+n+' أيام':'بعد '+n+' يومًا';
+const dblock = e => `<div class="dblock"><span class="wd">${esc(D.weekday(e.s))}</span><span class="dn">${esc(D.day(e.s))}</span><span class="mn">${esc(D.month(e.s))}</span><span class="hj">${esc(D.hijriShort(e.s))}</span></div>`;
+const badge = e => `<span class="badge k-${esc(e.kind)}">${esc(KIND[e.kind]||'مناسبة')}</span>`;
+
+/* ---------- render ---------- */
+let S = {y:null, m:null, day:null, kind:'all'};
+{ const p=D.ymd(upcoming[0]?upcoming[0].s:now).split('-'); S.y=+p[0]; S.m=+p[1]; }
+
+function render(){
+  if(!E.length){
+    app.innerHTML=`<section class="card blank">${ic(I.cal,56)}<h2>لا توجد فعاليات بعد</h2><p>عندما تُضاف الأعراس والجمعات واللقاءات ستظهر هنا، مع تذكير يصلك على جوالك.</p></section>`;
+    return;
+  }
+  const n=upcoming[0];
+  let h='';
+  if(n){
+    const dd=daysTo(n);
+    h+=`<section class="card spot"><div>${dblock(n)}</div>
+      <div>${badge(n)}<h3>${esc(n.title)}</h3><div class="meta"><span>${ic(I.clock,16)}${esc(timeText(n))}</span>${n.location_name?`<span>${ic(I.pin,16)}${esc(n.location_name)}</span>`:''}<span>${ic(I.moon,16)}${esc(D.hijri(n.s))}</span></div></div>
+      <div class="cd">${dd<=0?'<b>اليوم</b>':dd===1?'<b>غدًا</b>':`<span>باقي</span><b>${dd}</b><span>${dd<=10?'أيام':'يومًا'}</span>`}</div>
+      <div class="acts"><button class="btn g" type="button" data-open="${n.id}">التفاصيل وإضافة للتقويم</button>${n.map_url?`<a class="btn" href="${esc(n.map_url)}" target="_blank" rel="noopener">${ic(I.pin,17)}الموقع على الخريطة</a>`:''}</div></section>`;
+  } else {
+    h+=`<section class="card blank" style="padding:34px 24px"><h2 style="font-size:22px">لا توجد فعاليات قادمة حاليًا</h2><p>تصفح الفعاليات السابقة وصورها بالأسفل.</p></section>`;
+  }
+  h+=`<div class="grid"><section class="card cal" id="cal"></section><div>
+    <div class="sec-h" style="margin-top:0"><h2>${S.day?esc(D.full(new Date(S.day+'T12:00:00+03:00'))):'القادمة'}</h2>${S.day?'<button class="btn sm" type="button" data-clr>عرض كل القادمة</button>':''}</div>
+    <div class="filt chips">${[['all','الكل'],['wedding','الأعراس'],['gathering','الجمعات'],['meeting','اللقاءات'],['other','مناسبات أخرى']].map(([k,t])=>`<button type="button" class="chip ${S.kind===k?'on':''}" data-kind="${k}">${t}</button>`).join('')}</div>
+    <div class="list" id="ul"></div>
+    ${past.length?`<div class="sec-h"><h2>فعاليات سابقة</h2><span class="sub">${past.length}</span></div><div class="list" id="pl"></div>`:''}
+  </div></div>`;
+  app.innerHTML=h;
+  renderCal(); renderLists();
+}
+function evRow(e, isPast){
+  const al=albums[e.id], np=al&&photosBy[al.id]?photosBy[al.id].length:0;
+  return `<button type="button" class="ev ${isPast?'past':''}" data-open="${e.id}">
+    <div class="db"><b>${esc(D.day(e.s))}</b><span>${esc(D.month(e.s))}</span></div>
+    <div>${badge(e)}<h4>${esc(e.title)}</h4><div class="meta"><span>${ic(I.clock,14)}${esc(D.weekday(e.s))} · ${esc(timeText(e))}</span><span>${ic(I.moon,14)}${esc(D.hijriShort(e.s))}</span>${e.location_name?`<span>${ic(I.pin,14)}${esc(e.location_name)}</span>`:''}${np?`<span class="ph">${ic(I.img,14)}${pc(np)}</span>`:''}</div></div>
+    <span class="go">${ic(I.next,20)}</span></button>`;
+}
+function renderLists(){
+  const kindOk=e=>S.kind==='all'||e.kind===S.kind;
+  const ul=document.getElementById('ul'), pl=document.getElementById('pl');
+  let up = S.day ? E.filter(e=>D.ymd(e.s)===S.day) : upcoming;
+  up = up.filter(kindOk);
+  ul.innerHTML = up.length ? up.map(e=>evRow(e, endOf(e)<now)).join('') : `<div class="card blank" style="padding:26px"><p>${S.day?'لا توجد فعاليات في هذا اليوم.':'لا توجد فعاليات قادمة من هذا النوع.'}</p></div>`;
+  if(pl){ const pp=past.filter(kindOk); pl.innerHTML = pp.length?pp.map(e=>evRow(e,true)).join(''):'<div class="sub" style="padding:8px 4px">لا يوجد.</div>'; }
+}
+function renderCal(){
+  const el=document.getElementById('cal');
+  const first=new Date(Date.UTC(S.y,S.m-1,1,12));
+  const startDow=(first.getUTCDay()+1)%7; // week starts Saturday
+  const dim=new Date(Date.UTC(S.y,S.m,0)).getUTCDate();
+  const byDay={}; E.forEach(e=>{(byDay[D.ymd(e.s)]=byDay[D.ymd(e.s)]||[]).push(e);});
+  const today=D.ymd(now);
+  const pad=n=>String(n).padStart(2,'0');
+  const hijFrom=D.hijriShort(first), hijTo=D.hijri(new Date(Date.UTC(S.y,S.m-1,dim,12)));
+  let cells='';
+  ['سبت','أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة'].forEach(w=>cells+=`<div class="wd">${w}</div>`);
+  for(let i=0;i<startDow;i++) cells+='<div></div>';
+  for(let d=1;d<=dim;d++){
+    const k=S.y+'-'+pad(S.m)+'-'+pad(d), evs=byDay[k]||[];
+    cells+=`<button type="button" class="cd2 ${k===today?'today':''} ${S.day===k?'sel':''}" data-day="${k}" aria-label="${d}${evs.length?' – '+evs.length+' فعالية':''}"><span>${d}</span><span class="dots">${evs.slice(0,3).map(e=>`<i style="background:${S.day===k?'#fff':KC[e.kind]||KC.other}"></i>`).join('')}</span></button>`;
+  }
+  el.innerHTML=`<div class="hd"><div><b>${esc(D.monthYear(first))}</b><div class="hs">${esc(hijFrom)} – ${esc(hijTo)}</div></div><div class="nav"><button class="ib" type="button" data-mv="-1" aria-label="الشهر السابق">${ic(I.prev)}</button><button class="ib" type="button" data-mv="1" aria-label="الشهر التالي">${ic(I.next)}</button></div></div>
+   <div class="cg">${cells}</div>
+   <div class="lg">${Object.entries(KIND).map(([k,t])=>`<span><i style="background:${KC[k]}"></i>${t}</span>`).join('')}</div>
+   <div class="sub2">اضغط على أي يوم لعرض فعالياته. أضف الفعالية لتقويم جوالك ليصلك تذكير قبلها بيوم وقبلها بساعة.</div>`;
+}
+
+/* ---------- dialog ---------- */
+const ov=document.getElementById('ov'), dlg=document.getElementById('dlg');
+function openEvent(id){
+  const e=E.find(x=>x.id===+id); if(!e) return;
+  const al=albums[e.id], ps=al?(photosBy[al.id]||[]):[];
+  const hn=hostName(e);
+  const gcal='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(e.title)+'&dates='+gfmt(e.s)+'/'+gfmt(endOf(e))+'&details='+encodeURIComponent((e.description||'')+(e.map_url?'\n'+e.map_url:''))+'&location='+encodeURIComponent(e.location_name||'');
+  dlg.innerHTML=`<button class="x" type="button" data-close aria-label="إغلاق">${ic(I.x)}</button>
+   <div class="dh">${dblock(e)}<div>${badge(e)}<h3 id="dTitle">${esc(e.title)}</h3></div></div>
+   <div class="dbody">
+    <div class="row"><span class="ic">${ic(I.cal)}</span><div>${esc(D.full(e.s))}<small>${esc(D.hijri(e.s))}</small></div></div>
+    <div class="row"><span class="ic">${ic(I.clock)}</span><div>${esc(timeText(e))}<small>${endOf(e)<now?'انتهت':cdText(daysTo(e))}</small></div></div>
+    ${e.location_name||e.map_url?`<div class="row"><span class="ic">${ic(I.pin)}</span><div>${esc(e.location_name||'الموقع')}${e.map_url?`<small><a href="${esc(e.map_url)}" target="_blank" rel="noopener" style="color:var(--olive);font-weight:600">افتح في الخرائط</a></small>`:''}</div></div>`:''}
+    ${hn?`<div class="row"><span class="ic">${ic(I.host)}</span><div>${esc(hn)}<small>صاحب الدعوة</small></div></div>`:''}
+    ${e.description?`<div class="desc">${esc(e.description)}</div>`:''}
+    ${ps.length?`<div><div class="sec-h" style="margin:4px 0 10px"><h2 style="font-size:19px">صور الفعالية</h2><a class="sub" href="memories.html#album-${al.id}" style="color:var(--olive);font-weight:600">كل الصور (${ps.length})</a></div><a class="strip" href="memories.html#album-${al.id}">${ps.slice(0,4).map(p=>`<img src="${esc(photoUrl(p.thumb_path))}" alt="" loading="lazy">`).join('')}</a></div>`:''}
+    ${endOf(e)>=now?`<div class="dacts"><div class="addcal"><button class="btn g" type="button" data-addcal style="width:100%">${ic(I.cal,17)}أضف لتقويمي</button>
+      <div class="menu" id="calMenu"><a href="/api/ics?id=${e.id}">تقويم الجوال<small>آيفون والأجهزة الأخرى · مع تذكير قبلها بيوم وبساعة</small></a><a href="${esc(gcal)}" target="_blank" rel="noopener">تقويم Google<small>أندرويد وجيميل</small></a></div></div>
+      ${e.map_url?`<a class="btn" href="${esc(e.map_url)}" target="_blank" rel="noopener">${ic(I.pin,17)}الاتجاهات</a>`:`<button class="btn" type="button" data-share="${e.id}">مشاركة الفعالية</button>`}</div>`:''}
+    ${endOf(e)>=now&&e.map_url?`<button class="btn" type="button" data-share="${e.id}">مشاركة الفعالية</button>`:''}
+   </div>`;
+  ov.classList.add('on'); document.body.style.overflow='hidden';
+  history.replaceState(null,'','#event-'+e.id);
+}
+function closeDlg(){ ov.classList.remove('on'); document.body.style.overflow=''; history.replaceState(null,'',location.pathname+location.search); }
+const gfmt = d => d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+function openSubscribe(){
+  dlg.innerHTML=`<button class="x" type="button" data-close aria-label="إغلاق">${ic(I.x)}</button>
+   <div class="dh"><div><h3 id="dTitle">اشترك في تقويم العائلة</h3><div class="sub" style="margin-top:6px">مرة واحدة فقط، وكل فعالية جديدة تظهر في تقويم جوالك تلقائيًا</div></div></div>
+   <div class="dbody">
+    <a class="btn g" href="${esc(subUrl)}">${ic(I.cal,17)}اشترك من الآيفون</a>
+    <a class="btn" href="https://calendar.google.com/calendar/r?cid=${encodeURIComponent(subUrl)}" target="_blank" rel="noopener">اشترك عبر تقويم Google</a>
+    <div class="desc" style="font-size:13.5px;line-height:1.8">للتذكير قبل كل فعالية، استخدم زر «أضف لتقويمي» داخل الفعالية نفسها. بعض الجوالات لا تُظهر تنبيهات التقويمات المشترَك فيها.</div>
+   </div>`;
+  ov.classList.add('on'); document.body.style.overflow='hidden';
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', ev=>{
+  const t=ev.target.closest('[data-open],[data-day],[data-mv],[data-kind],[data-clr],[data-close],[data-addcal],[data-share]');
+  const menu=document.getElementById('calMenu');
+  if(menu && !ev.target.closest('.addcal')) menu.classList.remove('on');
+  if(!t){ if(ev.target===ov) closeDlg(); return; }
+  const d=t.dataset;
+  if(d.open){ openEvent(d.open); return; }
+  if(d.close!==undefined){ closeDlg(); return; }
+  if(d.addcal!==undefined){ menu.classList.toggle('on'); return; }
+  if(d.share){ const e=E.find(x=>x.id===+d.share); const url=location.origin+location.pathname+'#event-'+e.id; const text=e.title+' — '+D.full(e.s)+' ('+D.hijri(e.s)+')';
+    if(navigator.share) navigator.share({title:e.title,text,url}).catch(()=>{}); else navigator.clipboard.writeText(text+'\n'+url).then(()=>toast('تم نسخ رابط الفعالية')); return; }
+  if(d.day){ S.day = S.day===d.day?null:d.day; render(); return; }
+  if(d.mv){ S.m+=+d.mv; if(S.m<1){S.m=12;S.y--;} if(S.m>12){S.m=1;S.y++;} S.day=null; render(); return; }
+  if(d.kind){ S.kind=d.kind; render(); return; }
+  if(d.clr!==undefined){ S.day=null; render(); return; }
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && ov.classList.contains('on')) closeDlg(); });
+
+render();
+const m=location.hash.match(/^#event-(\d+)/); if(m) openEvent(m[1]);
+})();
+</script>
+</body>
+</html>
