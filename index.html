@@ -96,6 +96,11 @@ button{font:inherit;color:inherit}
 /* side */
 .side{display:flex;flex-direction:column;gap:22px}
 .person .ph{padding:22px 22px 18px;display:flex;gap:16px;align-items:center;border-bottom:1px solid var(--line);position:relative}
+.ava{overflow:hidden;cursor:default}
+.ava img,.ri .d img,.tip img{width:100%;height:100%;object-fit:cover;display:block}
+.ri .d{overflow:hidden}
+.tip .tph{float:left;width:46px;height:46px;border-radius:50%;overflow:hidden;margin:2px 10px 4px 0}
+.ava.big{width:96px;height:96px}
 .ava{width:66px;height:66px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Reem Kufi',serif;font-size:28px;font-weight:600;color:#14190F}
 .person h2{margin:0;font-family:'Reem Kufi',serif;font-size:28px;font-weight:600;line-height:1.15}
 .tag{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:var(--muted)}
@@ -307,7 +312,7 @@ const SB = window.supabase.createClient(window.FT_CONFIG.url, window.FT_CONFIG.k
 let site={}, rows=[];
 try{
   const st0 = await SB.rpc('get_site_status'); if(st0.error) throw st0.error; site = st0.data||{};
-  const tr0 = await SB.rpc('get_tree'); if(tr0.error) throw tr0.error; rows = tr0.data||[];
+  const tr0 = await SB.rpc('get_family_tree'); if(tr0.error) throw tr0.error; rows = tr0.data||[];
 }catch(err){
   document.querySelector('.wrap').innerHTML='<section class="card blank"><h2>تعذّر تحميل الشجرة</h2><p>تحقق من اتصالك بالإنترنت ثم حدّث الصفحة.</p></section>';
   document.getElementById('stats').innerHTML='';
@@ -325,7 +330,7 @@ window.__siteMode = {online: site.online!==false, msg: site.msg||'', back: site.
 if(window.applySiteMode) window.applySiteMode(window.__siteMode);
 
 const P=[]; const by={};
-rows.forEach(r=>{const x={id:r.id,n:r.first_name,p:r.father_id||0,b:r.birth_year||null,d:r.death_year||null,dead:!!r.is_dead||!!r.death_year,g:(r.gender||'m').trim(),kids:[]};P.push(x);by[x.id]=x;});
+rows.forEach(r=>{const x={id:r.id,n:r.first_name,p:r.father_id||0,b:r.birth_year||null,d:r.death_year||null,dead:!!r.is_dead||!!r.death_year,g:(r.gender||'m').trim(),ph:r.photo_path||null,kids:[]};P.push(x);by[x.id]=x;});
 P.forEach(x=>{if(x.p&&by[x.p])by[x.p].kids.push(x.id);});
 P.forEach(x=>x.kids.sort((a,b)=>(by[a].b||9999)-(by[b].b||9999)||a-b));
 const founder = P.find(x=>!x.p);
@@ -343,6 +348,8 @@ const gen=id=>anc(id).length;
 const short=(id,k=2)=>anc(id).slice(0,k).map(i=>by[i].n).join(' بن ');
 const yrs=x=>x.dead?((x.b||x.d)?(x.b||'؟')+' – '+(x.d||'؟'):(x.g==='f'?'متوفاة رحمها الله':'متوفى رحمه الله')):(x.b?'مواليد '+x.b:'');
 const dot=t=>t?' · '+t:'';
+const purl=p=>window.FT_CONFIG.url+'/storage/v1/object/public/photos/'+p.split('/').map(encodeURIComponent).join('/');
+const face=x=>x.ph?`<img src="${esc(purl(x.ph))}" alt="" loading="lazy">`:esc(x.n[0]);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* branch colours: one per son of the founder */
@@ -483,7 +490,7 @@ function buildTree(){
 function showTip(e,id){
   if(matchMedia('(hover:none)').matches)return;
   const x=by[id]; const r=stage.getBoundingClientRect();
-  tip.innerHTML=`<b>${esc(x.n)}</b><span>${esc(short(id,4))}</span><br><span>الجيل ${gen(id)} · ${desc(id)} من الذرية${dot(yrs(x))}</span>`;
+  tip.innerHTML=`${x.ph?`<span class="tph"><img src="${esc(purl(x.ph))}" alt=""></span>`:''}<b>${esc(x.n)}</b><span>${esc(short(id,4))}</span><br><span>الجيل ${gen(id)} · ${desc(id)} من الذرية${dot(yrs(x))}</span>`;
   let left=e.clientX-r.left+14, top=e.clientY-r.top+14;
   if(left>r.width-250)left-=270; if(top>r.height-110)top-=110;
   tip.style.left=left+'px'; tip.style.top=top+'px'; tip.style.opacity=1;
@@ -512,7 +519,7 @@ function renderPerson(){
   const lin=a.map(i=>`<span>${esc(by[i].n)}</span>`).map((h,i)=>i===0?h:'<span class="bn">'+(i===1&&x.g==='f'?'بنت':'بن')+'</span>'+h).join('')+' <span style="color:var(--gold)">'+esc(FAM)+'</span>';
   const sibs=f?f.kids.filter(c=>c!==x.id):[];
   document.getElementById('person').innerHTML=
-   `<div class="ph"><span class="ava" style="background:${colorOf(x.id)}">${esc(x.n[0])}</span><div><h2>${esc(x.n)}</h2>
+   `<div class="ph"><span class="ava ${x.ph?'big':''}" style="background:${colorOf(x.id)}">${face(x)}</span><div><h2>${esc(x.n)}</h2>
      <div class="tag"><i style="background:${bColor[branchOf(x.id)]}"></i>${x.id===founder.id?'الجد المؤسس':'فرع '+esc(by[branchOf(x.id)].n)} · الجيل ${a.length}${dot(yrs(x))}</div></div></div>
     <div class="pb">
      <div><div class="k">النسب الكامل</div><div class="lineage">${lin}</div></div>
@@ -587,7 +594,7 @@ function runPal(){
   list.sort((a,b)=>(norm(b.full).startsWith(q)?1:0)-(norm(a.full).startsWith(q)?1:0)||gen(a.id)-gen(b.id));
   palList=list.slice(0,40); palAct=0;
   document.getElementById('pcount').textContent=q?list.length+' نتيجة':'ابدأ بالكتابة للبحث في '+P.length+' فردًا';
-  pres.innerHTML=palList.length?palList.map((r,i)=>{const x=by[r.id];const parts=r.full.split(' بن ');return `<button type="button" class="ri ${i===0?'act':''}" data-pick="${r.id}"><span class="d" style="background:${colorOf(r.id)}">${esc(x.n[0])}</span><span class="t"><b>${esc(x.n)}</b><span>${esc(parts.slice(1,5).join(' بن '))||'الجد المؤسس'}</span></span><span class="g">ج${parts.length}</span></button>`;}).join(''):`<div class="empty">لا يوجد أحد بهذا الاسم. جرّب جزءًا من الاسم أو اسم الأب.</div>`;
+  pres.innerHTML=palList.length?palList.map((r,i)=>{const x=by[r.id];const parts=r.full.split(' بن ');return `<button type="button" class="ri ${i===0?'act':''}" data-pick="${r.id}"><span class="d" style="background:${colorOf(r.id)}">${face(x)}</span><span class="t"><b>${esc(x.n)}</b><span>${esc(parts.slice(1,5).join(' بن '))||'الجد المؤسس'}</span></span><span class="g">ج${parts.length}</span></button>`;}).join(''):`<div class="empty">لا يوجد أحد بهذا الاسم. جرّب جزءًا من الاسم أو اسم الأب.</div>`;
 }
 function pick(id){closePal(); if(st.palMode==='cmp'){st.cmp=id===st.sel?st.cmp:id;renderKin();} else {select(id);showInTree(id);}}
 pin.addEventListener('input',runPal);

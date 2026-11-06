@@ -59,7 +59,7 @@ const I={
  star:'<path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/>'
 };
 const ic=(n,s=18,c='currentColor')=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
-const avatar=(id,size)=>`<span class="av" style="background:${colorOf(id)}${size?`;width:${size}px;height:${size}px`:''}">${esc(by[id]?by[id].n[0]:'؟')}</span>`;
+const avatar=(id,size)=>`<span class="av" style="background:${colorOf(id)}${size?`;width:${size}px;height:${size}px`:''}">${by[id]&&by[id].photo?`<img src="${esc(photoUrl(by[id].photo))}" alt="" loading="lazy">`:esc(by[id]?by[id].n[0]:'؟')}</span>`;
 
 /* ================= toast ================= */
 function toast(t,bad){const el=document.getElementById('toast');el.innerHTML=ic(bad?'info':'check',18,bad?'#F3B9A8':'#C9D3B0')+'<span>'+esc(t)+'</span>';el.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>el.classList.remove('on'),bad?4200:2600);}
@@ -78,7 +78,7 @@ const errMsg=e=>{const m=(e&&(e.message||e.error_description))||'حدث خطأ �
 async function loadAll(){
  const q=[
   SB.from('persons').select('*').order('id'),
-  SB.rpc('get_tree'),
+  SB.rpc('get_family_tree'),
   SB.from('requests').select('*').eq('status','pending').order('created_at',{ascending:false}),
   SB.from('audit_log').select('*').order('created_at',{ascending:false}).limit(300),
   SB.from('site_settings').select('*').eq('id',1).maybeSingle(),
@@ -93,7 +93,7 @@ async function loadAll(){
  P=[];by={};
  const det={};(pp.data||[]).forEach(r=>det[r.id]=r);
  const base=new Map();(tr.data||[]).forEach(r=>base.set(r.id,r));(pp.data||[]).forEach(r=>base.set(r.id,r));
- base.forEach((t,id)=>{const r=det[id]||t;const x={id,n:r.first_name,p:r.father_id||0,b:r.birth_year,d:r.death_year,dead:!!r.is_dead||r.death_year!=null,g:String(r.gender||'m').trim(),vis:r.visibility||'public',ph:r.phone||'',nt:r.notes||'',by:r.created_by_name||'',at:r.created_at||null,kids:[]};P.push(x);by[x.id]=x;});
+ base.forEach((t,id)=>{const r=det[id]||t;const x={id,n:r.first_name,p:r.father_id||0,b:r.birth_year,d:r.death_year,dead:!!r.is_dead||r.death_year!=null,g:String(r.gender||'m').trim(),vis:r.visibility||'public',ph:r.phone||'',nt:r.notes||'',by:r.created_by_name||'',at:r.created_at||null,photo:r.photo_path||t.photo_path||null,kids:[]};P.push(x);by[x.id]=x;});
  P.forEach(x=>{if(x.p&&by[x.p])by[x.p].kids.push(x.id);});
  P.forEach(x=>x.kids.sort((a,b)=>(by[a].b||9999)-(by[b].b||9999)||a-b));
  founder=P.find(x=>!x.p)||null;
@@ -268,6 +268,11 @@ function drawHTML(){
  const canDel=x&&can('del')&&!x.kids.length;
  drawer.innerHTML=`<div class="dh"><div><h3 id="dTitle">${title}</h3><div class="sub" style="margin-top:4px">${D.founder?'أول اسم في الشجرة، وكل الفروع تنطلق منه':s?'ضمن فرع '+esc(short(s.scope_root,2)):'أي مكان في الشجرة'}</div></div><button class="x" type="button" data-act="close" aria-label="إغلاق">${ic('x')}</button></div>
  <form class="db" id="mf" novalidate onsubmit="return false">
+  <div class="f"><span class="lb">الصورة <span class="sub">(اختياري)</span></span>
+   <div class="pphoto"><span class="pv-av" style="background:${x?colorOf(x.id):'var(--sand)'}">${D.pprev?`<img src="${D.pprev}" alt="">`:(!D.premove&&x&&x.photo)?`<img src="${esc(photoUrl(x.photo))}" alt="">`:ic('user',30,'#8A7F66')}</span>
+    <span style="display:flex;flex-wrap:wrap;gap:8px"><label class="btn sm" for="pfile" style="cursor:pointer">${ic('img',15)}${D.pprev||(x&&x.photo&&!D.premove)?'تغيير الصورة':'اختر صورة'}</label><input id="pfile" type="file" accept="image/*" hidden>
+    ${D.pprev||(x&&x.photo&&!D.premove)?'<button class="btn sm no" type="button" data-act="rmPhoto">إزالة</button>':''}</span></div>
+   <span class="h">تظهر في بطاقة الشخص في الموقع. تُقص على شكل دائرة.</span></div>
   ${x?`<div class="chosen">${avatar(x.id)}<span>${esc(fullName(x.id))}<small>الجيل ${gen(x.id)}</small></span></div>`:D.founder?'':`
   <div class="f"><span class="lb">الأب</span>
    ${D.father?`<div class="chosen">${avatar(D.father,30)}<span>${esc(short(D.father,4))}<small>الجيل ${gen(D.father)} · ${by[D.father].kids.length} أبناء حاليًا</small></span><button class="btn sm" type="button" data-act="clearFather">تغيير</button></div>`:
@@ -291,6 +296,8 @@ function drawHTML(){
  <div class="df"><button class="btn p" type="button" data-act="save" ${D.busy?'disabled':''}>${D.busy?'جارٍ الحفظ…':x?'حفظ التعديلات':direct?'إضافة للشجرة':'إرسال للاعتماد'}</button><button class="btn" type="button" data-act="close">إلغاء</button>
  ${canDel?`<button class="btn no" type="button" data-act="del" style="margin-inline-start:auto">${ic('trash',15)}${D.delArm?'اضغط مرة ثانية للتأكيد':'حذف'}</button>`:x&&can('del')&&x.kids.length?'<span class="sub" style="margin-inline-start:auto">لا يمكن حذف من له أبناء</span>':''}</div>`;
  bindDrawer(); preview();
+ const pf=document.getElementById('pfile');
+ if(pf)pf.onchange=()=>{const f=pf.files&&pf.files[0];if(!f)return;const keep=collect();if(D.pprev)URL.revokeObjectURL(D.pprev);D.pf=f;D.pprev=URL.createObjectURL(f);D.premove=false;drawHTML();restore(keep);};
 }
 function preview(){const pv=document.getElementById('pv');if(!pv||!D)return;const n=((document.getElementById('nm')||{}).value||'').trim();const f=D.edit?by[D.edit].p:D.father;
  if(D.founder){pv.innerHTML=`سيظهر في أعلى الشجرة باسم:<br><b>${esc(n||'…')}</b> · الجد المؤسس`;return;}
@@ -320,10 +327,16 @@ async function saveMember(){
  if(!ok)return;
  const row={first_name:nm,gender:D.g,birth_year:yr,death_year:D.status==='dead'?dyr:null,is_dead:D.status==='dead',visibility:D.vis,phone:(v.ph||'').trim()||null,notes:(v.nt||'').trim()||null};
  D.busy=true;drawHTML();restore(v);
+ const oldPhoto=D.edit?by[D.edit].photo:null;let newPhoto=null;
  try{
+  if(D.pf){const img=await prepPortrait(D.pf);newPhoto='people/'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)+'.jpg';
+   const up=await SB.storage.from('photos').upload(newPhoto,img,{contentType:'image/jpeg',cacheControl:'31536000',upsert:false});if(up.error){newPhoto=null;throw up.error;}
+   row.photo_path=newPhoto;}
+  else if(D.premove)row.photo_path=null;
+  const dropOld=()=>{if(oldPhoto&&(newPhoto||D.premove))SB.storage.from('photos').remove([oldPhoto]).catch(()=>{});};
   if(D.edit){
    const {error}=await SB.from('persons').update(row).eq('id',D.edit);if(error)throw error;
-   S.fresh=D.edit;closeDrawer();await refresh();toast('تم حفظ التعديلات');return;
+   dropOld();S.fresh=D.edit;closeDrawer();await refresh();toast('تم حفظ التعديلات');return;
   }
   if(D.founder||can('direct')){
    const {data,error}=await SB.from('persons').insert({...row,father_id:D.founder?null:fth,created_by_name:myName()}).select('id').single();if(error)throw error;
@@ -331,15 +344,24 @@ async function saveMember(){
    S.fresh=data.id;S.view='members';S.q='';closeDrawer();await refresh();
    toast(wasFounder?`تمت إضافة ${nm} جدًّا مؤسسًا للشجرة`:`تمت إضافة ${nm} ${row.gender==='f'?'بنت':'بن'} ${by[fth]?by[fth].n:''} للشجرة`);return;
   }
-  const {error}=await SB.from('requests').insert({kind:'add',father_id:fth,payload:{name:nm,gender:D.g,birth_year:yr,death_year:row.death_year,note:row.notes},submitter_name:myName(),source:'supervisor',submitted_by_email:ME.email,status:'pending'});if(error)throw error;
+  const {error}=await SB.from('requests').insert({kind:'add',father_id:fth,payload:{name:nm,gender:D.g,birth_year:yr,death_year:row.death_year,note:row.notes,photo_path:newPhoto||undefined},submitter_name:myName(),source:'supervisor',submitted_by_email:ME.email,status:'pending'});if(error)throw error;
   S.view='requests';S.rqTab='all';closeDrawer();await refresh();toast('أُرسل الطلب للمدير العام للاعتماد');
- }catch(e){if(D){D.busy=false;drawHTML();restore(v);}toast(errMsg(e),true);}
+ }catch(e){if(newPhoto)SB.storage.from('photos').remove([newPhoto]).catch(()=>{});if(D){D.busy=false;drawHTML();restore(v);}toast(errMsg(e),true);}
+}
+async function prepPortrait(file){
+ let src,w,h;
+ try{src=await createImageBitmap(file,{imageOrientation:'from-image'});w=src.width;h=src.height;}
+ catch(_){src=await loadImg(file);w=src.naturalWidth;h=src.naturalHeight;}
+ const side=Math.min(w,h),sx=(w-side)/2,sy=Math.max(0,(h-side)*0.35),out=Math.min(720,side);
+ const c=document.createElement('canvas');c.width=out;c.height=out;const x=c.getContext('2d');x.imageSmoothingQuality='high';
+ x.drawImage(src,sx,sy,side,side,0,0,out,out);if(src.close)src.close();
+ const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.86));if(!blob)throw new Error('تعذّرت معالجة الصورة');return blob;
 }
 async function deleteMember(){
  if(!D||!D.edit)return;
  if(!D.delArm){const keep=collect();D.delArm=true;drawHTML();restore(keep);return;}
  const x=by[D.edit];
- try{const {error}=await SB.from('persons').delete().eq('id',x.id);if(error)throw error;closeDrawer();await refresh();toast('تم حذف '+x.n);}
+ try{const {error}=await SB.from('persons').delete().eq('id',x.id);if(error)throw error;if(x.photo)SB.storage.from('photos').remove([x.photo]).catch(()=>{});closeDrawer();await refresh();toast('تم حذف '+x.n);}
  catch(e){toast(errMsg(e),true);}
 }
 
@@ -703,6 +725,7 @@ document.addEventListener('click',async e=>{
  if(a==='saveFam'){const v=document.getElementById('famIn').value.trim();if(!v){toast('اكتب اسم العائلة',true);return;}await saveSettings({family_name:v},'تم حفظ اسم العائلة');return;}
  if(a==='saveMe'){const v=document.getElementById('meIn').value.trim();if(!v){toast('اكتب اسمك',true);return;}
   const {error}=await SB.from('staff').update({display_name:v}).eq('id',ME.id);if(error){toast(errMsg(error),true);return;}ME.display_name=v;setMe();toast('تم حفظ اسمك');render();return;}
+ if(a==='rmPhoto'){const keep=collect();if(D.pprev)URL.revokeObjectURL(D.pprev);D.pf=null;D.pprev=null;D.premove=!!(D.edit&&by[D.edit].photo);drawHTML();restore(keep);return;}
  if(a==='addEv'){D={mode:'ev',edit:null};drawEvent();drawer.classList.add('on');scrim.classList.add('on');return;}
  if(a==='saveEv'){saveEvent();return;}
  if(a==='delEv'){deleteEvent();return;}
