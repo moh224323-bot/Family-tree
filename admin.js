@@ -29,7 +29,10 @@ function ago(ts){if(!ts)return '';const d=(Date.now()-new Date(ts).getTime())/10
  return new Date(ts).toLocaleDateString('ar-SA-u-ca-gregory',{year:'numeric',month:'short',day:'numeric'});}
 const isAdmin=()=>ME&&ME.role==='admin';
 const curSup=()=>ME&&ME.role==='supervisor'?ME:null;
-const inScope=id=>{const s=curSup();return !s||anc(id).includes(s.scope_root);};
+const scopesOf=s=>s?((s.scopes&&s.scopes.length)?s.scopes:(s.scope_root?[s.scope_root]:[])).filter(r=>by[r]):[];
+const inScope=id=>{const s=curSup();if(!s)return true;const a=anc(id);return scopesOf(s).some(r=>a.includes(r));};
+const scopeNames=(s,k=2)=>scopesOf(s).map(r=>'فرع '+short(r,k)).join('، ');
+const scopeTotal=s=>{const rs=scopesOf(s);return P.filter(x=>{const a=anc(x.id);return rs.some(r=>a.includes(r));}).length;};
 const can=p=>{const s=curSup();if(!s)return true;return {add:s.can_add,edit:s.can_edit,del:s.can_delete,direct:s.can_add&&s.can_publish}[p];};
 const myName=()=>ME?ME.display_name:'';
 
@@ -83,12 +86,13 @@ async function loadAll(){
   SB.from('audit_log').select('*').order('created_at',{ascending:false}).limit(300),
   SB.from('site_settings').select('*').eq('id',1).maybeSingle(),
   isAdmin()?SB.from('staff').select('*').order('id'):Promise.resolve({data:[]}),
+  isAdmin()?SB.from('staff_scopes').select('*').order('created_at'):Promise.resolve({data:[]}),
   SB.from('events').select('*').order('starts_at',{ascending:false}),
   SB.from('albums').select('*'),
   SB.from('photos').select('*').order('created_at')
  ];
- const [pp,tr,rq,lg,st,sf,ev,al,ph]=await Promise.all(q);
- for(const r of [pp,tr,rq,lg,st,sf,ev,al,ph]) if(r.error) throw r.error;
+ const [pp,tr,rq,lg,st,sf,scp,ev,al,ph]=await Promise.all(q);
+ for(const r of [pp,tr,rq,lg,st,sf,scp,ev,al,ph]) if(r.error) throw r.error;
  EVS=ev.data||[];ALB=al.data||[];PH={};(ph.data||[]).forEach(p=>(PH[p.album_id]=PH[p.album_id]||[]).push(p));
  P=[];by={};
  const det={};(pp.data||[]).forEach(r=>det[r.id]=r);
@@ -101,6 +105,7 @@ async function loadAll(){
  bColor={};B.forEach((c,i)=>bColor[c]=PAL[i%PAL.length]);if(founder)bColor[founder.id]='#4F5D2F';
  REQS=rq.data||[];LOG=lg.data||[];SET=st.data||{};
  SUPS=(sf.data||[]).filter(s=>s.role==='supervisor');
+ SUPS.forEach(s=>{s.scopes=(scp.data||[]).filter(x=>x.staff_id===s.id).map(x=>x.root_id);});
 }
 async function refresh(){try{await loadAll();}catch(e){toast(errMsg(e),true);}render();}
 
@@ -111,12 +116,12 @@ function renderNav(){
  const items=[['overview','home','نظرة عامة'],['members','users','الأفراد'],['requests','inbox','الطلبات',visibleReqs().length],['events','cal','الفعاليات',EVS.filter(e=>evEnd(e)>=new Date()).length,'g'],['photos','img','الصور'],...(admin?[['site','globe','الموقع والنشر',SET.online===false?'متوقف':0],['sups','shield','المشرفون',SUPS.length,'g']]:[]),['log','clock','سجل التعديلات'],...(admin?[['settings','gear','الخصوصية والإعدادات']]:[])];
  const s=curSup();
  document.getElementById('side').innerHTML=items.map(([k,i,t,c,cl])=>`<button type="button" class="nav ${S.view===k?'on':''}" data-view="${k}">${ic(i)}<span>${t}</span>${c?`<span class="c ${cl||''}">${c}</span>`:''}</button>`).join('')+
- `<div class="sidefoot">${s?`<b>صلاحياتك</b>مشرف على فرع ${esc(short(s.scope_root,2))} (${scopeSize(s.scope_root)} فردًا). ${can('direct')?'إضافاتك تُنشر مباشرة.':'إضافاتك تُراجع من المدير قبل النشر.'}`:`<b>المدير العام</b>صلاحيات كاملة على ${P.length} فردًا${B.length?' و'+B.length+' فروع':''}.`}</div>`;
+ `<div class="sidefoot">${s?`<b>صلاحياتك</b>مشرف على ${esc(scopeNames(s))} (${scopeTotal(s)} فردًا). ${can('direct')?'إضافاتك تُنشر مباشرة.':'إضافاتك تُراجع من المدير قبل النشر.'}`:`<b>المدير العام</b>صلاحيات كاملة على ${P.length} فردًا${B.length?' و'+B.length+' فروع':''}.`}</div>`;
 }
 
 /* ================= views ================= */
 const main=document.getElementById('main');
-function scopeBar(){const s=curSup();return s?`<div class="scopebar">${ic('lock',18,'#8A6A26')}<span>تعمل ضمن فرع <b>${esc(short(s.scope_root,3))}</b> فقط. ${can('direct')?'':'أي إضافة تُرسل للمدير العام للاعتماد.'}</span></div>`:'';}
+function scopeBar(){const s=curSup();return s?`<div class="scopebar">${ic('lock',18,'#8A6A26')}<span>تعمل ضمن ${scopesOf(s).length>1?'فروعك':'فرعك'}: <b>${esc(scopeNames(s,3))}</b> فقط. ${can('direct')?'':'أي إضافة تُرسل للمدير العام للاعتماد.'}</span></div>`:'';}
 
 function vStart(){
  return `<div class="ph"><div><h1>أهلًا ${esc(myName())}</h1><p>الشجرة فارغة الآن، وكل شيء جاهز لتبدأ</p></div></div>
@@ -135,8 +140,8 @@ function vOverview(){
  const living=pool.filter(x=>!x.dead).length;
  const reqs=visibleReqs();
  const month=pool.filter(x=>x.at&&Date.now()-new Date(x.at).getTime()<30*86400000).length;
- const roots=s?[s.scope_root]:B;
- const bars=roots.filter(b=>by[b]).map(b=>({b,n:scopeSize(b),sp:SUPS.filter(x=>x.scope_root===b||anc(x.scope_root).includes(b))}));
+ const roots=s?scopesOf(s):B;
+ const bars=roots.filter(b=>by[b]).map(b=>({b,n:scopeSize(b),sp:SUPS.filter(x=>scopesOf(x).some(r=>r===b||anc(r).includes(b)))}));
  const mx=Math.max(1,...bars.map(x=>x.n));
  return `<div class="ph"><div><h1>أهلًا ${esc(myName())}</h1><p>${s?'هذه نظرة على فرعك':'هذه نظرة عامة على '+(SET.family_name&&SET.family_name!=='العائلة'?'شجرة عائلة '+esc(SET.family_name):'شجرة العائلة')}</p></div>
   <div class="sp">${can('add')?`<button class="btn p" type="button" data-act="add">${ic('plus')}إضافة فرد</button>`:''}${isAdmin()?`<button class="btn" type="button" data-act="addSup">${ic('shield')}تعيين مشرف</button>`:''}</div></div>
@@ -146,7 +151,7 @@ function vOverview(){
    <div class="card kpi"><span class="l">${ic('users',16)}${s?'أفراد الفرع':'إجمالي الأفراد'}</span><span class="v">${pool.length}</span><span class="d">+${month} خلال 30 يومًا</span></div>
    <div class="card kpi"><span class="l">${ic('inbox',16)}طلبات بانتظار المراجعة</span><span class="v" style="color:#8A6A26">${reqs.length}</span><span class="d" style="color:var(--muted)">${reqs.length?'أقدمها '+esc(ago(reqs[reqs.length-1].created_at)):'لا يوجد'}</span></div>
    <div class="card kpi"><span class="l">${ic('user',16)}على قيد الحياة</span><span class="v">${living}</span><span class="d" style="color:var(--muted)">${pool.length?Math.round(living/pool.length*100):0}٪ من ${s?'الفرع':'العائلة'}</span></div>
-   <div class="card kpi"><span class="l">${ic('shield',16)}${s?'صلاحياتك':'المشرفون'}</span><span class="v">${s?[s.can_add,s.can_edit,s.can_delete,s.can_publish].filter(Boolean).length+'/4':SUPS.length}</span><span class="d" style="color:var(--muted)">${s?'إضافة · تعديل · حذف · نشر مباشر':(SUPS.length?'يغطّون '+new Set(SUPS.map(x=>branchOf(x.scope_root))).size+' من '+B.length+' فروع':'لم تعيّن مشرفين بعد')}</span></div>
+   <div class="card kpi"><span class="l">${ic('shield',16)}${s?'صلاحياتك':'المشرفون'}</span><span class="v">${s?[s.can_add,s.can_edit,s.can_delete,s.can_publish].filter(Boolean).length+'/4':SUPS.length}</span><span class="d" style="color:var(--muted)">${s?'إضافة · تعديل · حذف · نشر مباشر':(SUPS.length?'يغطّون '+new Set(SUPS.flatMap(x=>scopesOf(x).map(r=>branchOf(r)))).size+' من '+B.length+' فروع':'لم تعيّن مشرفين بعد')}</span></div>
   </div>
   <div class="grid2">
    <section class="card"><div class="ch"><h2>طلبات تنتظرك</h2><button class="lnk" type="button" data-view="requests">عرض الكل</button></div>
@@ -166,7 +171,7 @@ function vMembers(){
  if(!founder)return vStart();
  const list=filtered(); const shown=list.slice(0,S.limit); const s=curSup();
  const maxG=Math.max(1,...P.map(x=>gen(x.id)));
- return `<div class="ph"><div><h1>الأفراد</h1><p>${s?'أفراد فرع '+esc(short(s.scope_root,2)):'كل أفراد العائلة'} · ${list.length} نتيجة</p></div>
+ return `<div class="ph"><div><h1>الأفراد</h1><p>${s?'أفراد '+esc(scopeNames(s)):'كل أفراد العائلة'} · ${list.length} نتيجة</p></div>
   <div class="sp">${can('add')?`<button class="btn p" type="button" data-act="add">${ic('plus')}إضافة فرد</button>`:''}</div></div>
   ${scopeBar()}
   <section class="card">
@@ -211,13 +216,15 @@ function vRequests(){
 }
 
 function vSups(){
- return `<div class="ph"><div><h1>المشرفون والصلاحيات</h1><p>كل مشرف يدير فرعًا محددًا فقط، ولا يعدّل خارج فرعه</p></div>
+ return `<div class="ph"><div><h1>المشرفون والصلاحيات</h1><p>كل مشرف يدير الفروع المحددة له فقط، ولا يعدّل خارجها</p></div>
  ${founder?`<div class="sp"><button class="btn p" type="button" data-act="addSup">${ic('plus')}تعيين مشرف</button></div>`:''}</div>
- <div class="note" style="background:var(--bluebg);color:#24485E;margin-bottom:18px">${ic('info',18,'#2F5D7A')}<span>نطاق المشرف هو الشخص الذي يبدأ منه فرعه، ويقدر يضيف تحت أي واحد من ذريته فقط. يدخل المشرف من صفحة لوحة التحكم ببريده الإلكتروني نفسه الذي تسجّله هنا.</span></div>
+ <div class="note" style="background:var(--bluebg);color:#24485E;margin-bottom:18px">${ic('info',18,'#2F5D7A')}<span>نطاق المشرف هو الشخص أو الأشخاص الذين تبدأ منهم فروعه، ويقدر يضيف تحت أي واحد من ذريتهم فقط. تقدر تعطي المشرف أكثر من فرع. يدخل المشرف من صفحة لوحة التحكم ببريده الإلكتروني نفسه الذي تسجّله هنا.</span></div>
  ${!SUPS.length?`<section class="card"><div class="empty">${founder?'لم تعيّن أي مشرف بعد.':'أضف الجد المؤسس وفروعه أولًا، ثم عيّن مشرفين عليها.'}</div></section>`:''}
  <div class="sups">${SUPS.map(s=>{const perms=[['can_add','إضافة أفراد','ابن أو بنت تحت أي فرد في فرعه'],['can_edit','تعديل البيانات','الأسماء والتواريخ والحالة'],['can_delete','حذف أفراد','من ليس لهم أبناء فقط'],['can_publish','نشر مباشر','بدون انتظار اعتماد المدير']];
-  return `<article class="card sup"><div class="hd"><span class="av" style="background:${colorOf(s.scope_root)};width:46px;height:46px">${esc((s.display_name||'؟')[0])}</span><div><b>${esc(s.display_name)}</b><span class="sub" style="direction:ltr;display:block;text-align:right">${esc(s.email)}</span></div><span class="badge ${s.last_seen?'b-ok':'b-gold'}" style="margin-inline-start:auto">${s.last_seen?'دخل '+esc(ago(s.last_seen)):'لم يدخل بعد'}</span></div>
-  <div class="scope"><i class="dot" style="background:${colorOf(s.scope_root)}"></i><span>النطاق: فرع <b>${esc(short(s.scope_root,3))}</b></span><span class="sub" style="margin-inline-start:auto">${scopeSize(s.scope_root)} فردًا</span></div>
+  return `<article class="card sup"><div class="hd"><span class="av" style="background:${colorOf(scopesOf(s)[0])};width:46px;height:46px">${esc((s.display_name||'؟')[0])}</span><div><b>${esc(s.display_name)}</b><span class="sub" style="direction:ltr;display:block;text-align:right">${esc(s.email)}</span></div><span class="badge ${s.last_seen?'b-ok':'b-gold'}" style="margin-inline-start:auto">${s.last_seen?'دخل '+esc(ago(s.last_seen)):'لم يدخل بعد'}</span></div>
+  <div class="scope" style="flex-direction:column;align-items:stretch;gap:8px"><div style="display:flex;align-items:center;gap:8px"><span>${scopesOf(s).length>1?'الفروع':'الفرع'}</span><span class="sub" style="margin-inline-start:auto">${scopeTotal(s)} فردًا</span></div>
+   ${scopesOf(s).map(r=>`<div style="display:flex;align-items:center;gap:8px"><i class="dot" style="background:${colorOf(r)}"></i><b style="font-weight:600">فرع ${esc(short(r,3))}</b><span class="sub">${scopeSize(r)}</span>${scopesOf(s).length>1?`<button type="button" class="lnk" data-rmscope="${s.id}:${r}" style="margin-inline-start:auto;color:#A3412C">إزالة</button>`:''}</div>`).join('')}
+   <button type="button" class="btn sm" data-addscope="${s.id}" style="align-self:flex-start">${ic('plus',15)}إضافة فرع آخر</button></div>
   <div>${perms.map(([k,t,h])=>`<div class="perm"><span>${t}<small>${h}</small></span><button type="button" class="sw" role="switch" aria-checked="${!!s[k]}" aria-label="${t}" data-perm="${s.id}:${k}" ${k!=='can_add'&&k!=='can_edit'&&k!=='can_delete'&&!s.can_add?'disabled':''}></button></div>`).join('')}</div>
   <div class="ft"><button class="lnk" type="button" data-rmsup="${s.id}" style="color:#A3412C;margin:0">إلغاء الإشراف</button></div></article>`;}).join('')}</div>`;
 }
@@ -266,7 +273,7 @@ function drawHTML(){
  const direct=can('direct');
  const title=x?'تعديل بيانات '+esc(x.n):D.founder?'إضافة الجد المؤسس':'إضافة فرد جديد';
  const canDel=x&&can('del')&&!x.kids.length;
- drawer.innerHTML=`<div class="dh"><div><h3 id="dTitle">${title}</h3><div class="sub" style="margin-top:4px">${D.founder?'أول اسم في الشجرة، وكل الفروع تنطلق منه':s?'ضمن فرع '+esc(short(s.scope_root,2)):'أي مكان في الشجرة'}</div></div><button class="x" type="button" data-act="close" aria-label="إغلاق">${ic('x')}</button></div>
+ drawer.innerHTML=`<div class="dh"><div><h3 id="dTitle">${title}</h3><div class="sub" style="margin-top:4px">${D.founder?'أول اسم في الشجرة، وكل الفروع تنطلق منه':s?'ضمن '+esc(scopeNames(s)):'أي مكان في الشجرة'}</div></div><button class="x" type="button" data-act="close" aria-label="إغلاق">${ic('x')}</button></div>
  <form class="db" id="mf" novalidate onsubmit="return false">
   <div class="f"><span class="lb">الصورة <span class="sub">(اختياري)</span></span>
    <div class="pphoto"><span class="pv-av" style="background:${x?colorOf(x.id):'var(--sand)'}">${D.pprev?`<img src="${D.pprev}" alt="">`:(!D.premove&&x&&x.photo)?`<img src="${esc(photoUrl(x.photo))}" alt="">`:ic('user',30,'#8A7F66')}</span>
@@ -368,32 +375,47 @@ async function deleteMember(){
 /* ================= drawer: supervisor ================= */
 function drawSup(){
  if(!D.pp)D.pp={can_add:true,can_edit:true,can_delete:false,can_publish:!!SET.supervisors_direct_default};
- drawer.innerHTML=`<div class="dh"><div><h3 id="dTitle">تعيين مشرف فرع</h3><div class="sub" style="margin-top:4px">يدير المشرف فرعًا واحدًا فقط بالصلاحيات التي تحددها</div></div><button class="x" type="button" data-act="close" aria-label="إغلاق">${ic('x')}</button></div>
+ drawer.innerHTML=`<div class="dh"><div><h3 id="dTitle">تعيين مشرف فرع</h3><div class="sub" style="margin-top:4px">يدير المشرف الفروع التي تختارها فقط، بالصلاحيات التي تحددها</div></div><button class="x" type="button" data-act="close" aria-label="إغلاق">${ic('x')}</button></div>
  <div class="db">
   <div class="f"><label for="spn">1. اسم المشرف</label><input class="inp" id="spn" maxlength="80" value="${esc(D.spn||'')}" placeholder="مثال: خالد بن سعد"><span class="err" id="eS">اكتب اسم المشرف</span></div>
   <div class="f"><label for="spe">بريده الإلكتروني</label><input class="inp" id="spe" type="email" dir="ltr" value="${esc(D.spe||'')}" placeholder="name@example.com"><span class="h">يدخل به المشرف للوحة التحكم بعد إنشاء حسابه.</span><span class="err" id="eE">اكتب بريدًا صحيحًا</span></div>
-  <div class="f"><span class="lb">2. على أي فرع يشرف؟</span>
-   ${D.sc?`<div class="chosen">${avatar(D.sc,30)}<span>فرع ${esc(short(D.sc,3))}<small>${scopeSize(D.sc)} فردًا تحت هذا الفرع</small></span><button class="btn sm" type="button" data-act="clrSc">تغيير</button></div>`:
-   `<div class="chips" style="display:flex;flex-wrap:wrap;gap:8px">${B.map(b=>`<button type="button" class="btn sm" data-sc="${b}"><i class="dot" style="background:${colorOf(b)}"></i>فرع ${esc(by[b].n)} <span class="sub">${scopeSize(b)}</span></button>`).join('')}</div>
-    <div class="pick"><input class="inp" id="scq" type="search" autocomplete="off" placeholder="أو ابحث عن فرع أصغر بالاسم والنسب" aria-label="ابحث عن فرع"><div class="opts" id="sco"></div></div>`}
-   <span class="err" id="eC">اختر الفرع</span></div>
+  <div class="f"><span class="lb">2. على أي فروع يشرف؟ <span class="sub">(فرع أو أكثر)</span></span>${scopePicker(D.scs)}<span class="err" id="eC">اختر فرعًا واحدًا على الأقل</span></div>
   <div class="f"><span class="lb">3. الصلاحيات</span><div class="checks">
    ${[['can_add','إضافة أفراد'],['can_edit','تعديل البيانات'],['can_delete','حذف أفراد'],['can_publish','نشر مباشر بدون اعتمادي']].map(([k,t])=>`<div class="perm"><span>${t}</span><button type="button" class="sw" role="switch" aria-checked="${D.pp[k]}" data-pp="${k}" aria-label="${t}"></button></div>`).join('')}
   </div></div>
  </div>
  <div class="df"><button class="btn p" type="button" data-act="saveSup" ${D.busy?'disabled':''}>${D.busy?'جارٍ الحفظ…':'تعيين المشرف'}</button><button class="btn" type="button" data-act="close">إلغاء</button></div>`;
+ bindScopeSearch();
+}
+function scopePicker(sel,excl){
+ sel=sel||[];excl=excl||[];
+ return `${sel.length?`<div style="display:flex;flex-direction:column;gap:8px">${sel.map(r=>`<div class="chosen">${avatar(r,30)}<span>فرع ${esc(short(r,3))}<small>${scopeSize(r)} فردًا تحت هذا الفرع</small></span><button class="btn sm" type="button" data-unsc="${r}">إزالة</button></div>`).join('')}</div>`:''}
+  <div class="chips" style="display:flex;flex-wrap:wrap;gap:8px">${B.filter(b=>!sel.includes(b)&&!excl.includes(b)).map(b=>`<button type="button" class="btn sm" data-sc="${b}">${ic('plus',14)}<i class="dot" style="background:${colorOf(b)}"></i>فرع ${esc(by[b].n)} <span class="sub">${scopeSize(b)}</span></button>`).join('')}</div>
+  <div class="pick"><input class="inp" id="scq" type="search" autocomplete="off" placeholder="أو ابحث عن فرع أصغر بالاسم والنسب" aria-label="ابحث عن فرع"><div class="opts" id="sco"></div></div>`;
+}
+function bindScopeSearch(){
  const i=document.getElementById('scq'),o=document.getElementById('sco');
  if(i)i.oninput=()=>{const v=norm(i.value);if(!v){o.classList.remove('on');return;}
-  const res=P.filter(x=>x.g!=='f'&&norm(fullName(x.id)).includes(v)).sort((a,b)=>gen(a.id)-gen(b.id)).slice(0,10);
+  const ex=D.mode==='scope'?scopesOf(SUPS.find(z=>z.id===D.sid)):[];const res=P.filter(x=>x.g!=='f'&&!(D.scs||[]).includes(x.id)&&!ex.includes(x.id)&&norm(fullName(x.id)).includes(v)).sort((a,b)=>gen(a.id)-gen(b.id)).slice(0,10);
   o.innerHTML=res.length?res.map(x=>`<button type="button" class="opt" data-sc="${x.id}">${avatar(x.id)}<span>فرع ${esc(x.n)} (${scopeSize(x.id)})<small>${esc(fullName(x.id).split(' بن ').slice(1,4).join(' بن ')||'الجد المؤسس')} · ج${gen(x.id)}</small></span></button>`).join(''):'<div class="empty" style="padding:14px">لا توجد نتائج</div>';o.classList.add('on');};
 }
+function drawAddScope(){
+ const s=SUPS.find(x=>x.id===D.sid);
+ drawer.innerHTML=`<div class="dh"><div><h3 id="dTitle">إضافة فرع لـ ${esc(s.display_name)}</h3><div class="sub" style="margin-top:4px">يشرف حاليًا على: ${esc(scopeNames(s))}</div></div><button class="x" type="button" data-act="close" aria-label="إغلاق">${ic('x')}</button></div>
+ <div class="db"><div class="f"><span class="lb">اختر الفرع الجديد</span>${scopePicker(D.scs,scopesOf(s))}<span class="err" id="eC">اختر فرعًا</span></div>
+ <div class="note" style="background:var(--bluebg);color:#24485E">${ic('info',18,'#2F5D7A')}<span>نفس صلاحياته الحالية تنطبق على الفرع الجديد.</span></div></div>
+ <div class="df"><button class="btn p" type="button" data-act="saveScope" ${D.busy?'disabled':''}>${D.busy?'جارٍ الحفظ…':'إضافة'}</button><button class="btn" type="button" data-act="close">إلغاء</button></div>`;
+ bindScopeSearch();
+}
+const redrawScopes=()=>{if(D.mode==='scope')drawAddScope();else{keepSup();drawSup();}};
 function keepSup(){const n=document.getElementById('spn'),e=document.getElementById('spe');if(n)D.spn=n.value;if(e)D.spe=e.value;}
 async function saveSup(){
  keepSup();let ok=true;const e=(id,on)=>{document.getElementById(id).classList.toggle('on',on);if(on)ok=false;};
  const name=(D.spn||'').trim(), email=(D.spe||'').trim().toLowerCase();
- e('eS',!name);e('eE',!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));e('eC',!D.sc);if(!ok)return;
+ e('eS',!name);e('eE',!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));e('eC',!(D.scs&&D.scs.length));if(!ok)return;
  D.busy=true;drawSup();
- try{const {error}=await SB.from('staff').insert({email,display_name:name,role:'supervisor',scope_root:D.sc,...D.pp});if(error)throw error;
+ try{const {data:st,error}=await SB.from('staff').insert({email,display_name:name,role:'supervisor',scope_root:D.scs[0],...D.pp}).select('id').single();if(error)throw error;
+  if(D.scs.length>1){const r=await SB.from('staff_scopes').insert(D.scs.slice(1).map(root_id=>({staff_id:st.id,root_id})));if(r.error)throw r.error;}
   closeDrawer();S.view='sups';await refresh();toast(`تم تعيين ${name}. أرسل له رابط لوحة التحكم ليُنشئ حسابه بنفس البريد`);}
  catch(err){if(D){D.busy=false;drawSup();}toast(/duplicate key|staff_email_key/.test(err.message||'')?'هذا البريد مسجّل لمشرف آخر':errMsg(err),true);}
 }
@@ -680,7 +702,7 @@ document.addEventListener('change',e=>{if(e.target&&e.target.id==='upl'&&ME){upl
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(fpv.classList.contains('on')){fpv.className='fpv';fpv.innerHTML='';}else if(D)closeDrawer();}});
 document.addEventListener('click',async e=>{
  if(!ME)return;
- const t=e.target.closest('[data-view],[data-act],[data-edit],[data-addchild],[data-ok],[data-no],[data-rqtab],[data-perm],[data-set],[data-rmsup],[data-father],[data-sc],[data-pp],[data-pvv],[data-pvd],[data-evph],[data-evedit],[data-alb],[data-cover],[data-cap],[data-delph],[data-host]');
+ const t=e.target.closest('[data-view],[data-act],[data-edit],[data-addchild],[data-ok],[data-no],[data-rqtab],[data-perm],[data-set],[data-rmsup],[data-father],[data-sc],[data-unsc],[data-addscope],[data-rmscope],[data-pp],[data-pvv],[data-pvd],[data-evph],[data-evedit],[data-alb],[data-cover],[data-cap],[data-delph],[data-host]');
  if(!t||fpv.contains(t))return;
  const d=t.dataset;
  if(d.view){S.view=d.view;S.album=null;S.albDel=false;render();window.scrollTo({top:0});return;}
@@ -692,7 +714,12 @@ document.addEventListener('click',async e=>{
  if(d.cap){D={mode:'cap',photo:+d.cap};drawCaption();drawer.classList.add('on');scrim.classList.add('on');setTimeout(()=>{const c=document.getElementById('cpT');c&&c.focus();},250);return;}
  if(d.delph){deletePhoto(+d.delph,t);return;}
  if(d.father){const keep=collect();D.father=+d.father;drawHTML();restore(keep);return;}
- if(d.sc){keepSup();D.sc=+d.sc;drawSup();return;}
+ if(d.sc){D.scs=[...(D.scs||[]),+d.sc].filter((v,i,a)=>a.indexOf(v)===i);if(D.mode==='scope')D.scs=[+d.sc];redrawScopes();return;}
+ if(d.unsc){D.scs=(D.scs||[]).filter(r=>r!==+d.unsc);redrawScopes();return;}
+ if(d.addscope){D={mode:'scope',sid:+d.addscope,scs:[]};drawAddScope();drawer.classList.add('on');scrim.classList.add('on');return;}
+ if(d.rmscope){if(t.dataset.armed!=='1'){t.dataset.armed='1';t.textContent='اضغط للتأكيد';return;}
+  const [sid,root]=d.rmscope.split(':').map(Number);const {error}=await SB.from('staff_scopes').delete().eq('staff_id',sid).eq('root_id',root);
+  if(error){toast(errMsg(error),true);return;}await refresh();toast('أُزيل الفرع من إشرافه');return;}
  if(d.pp){D.pp[d.pp]=!D.pp[d.pp];t.setAttribute('aria-checked',D.pp[d.pp]);return;}
  if(d.edit){openDrawer('edit',{id:+d.edit});return;}
  if(d.addchild){openDrawer('add',{father:+d.addchild});return;}
@@ -720,7 +747,10 @@ document.addEventListener('click',async e=>{
  if(a==='del'){deleteMember();return;}
  if(a==='saveSup'){saveSup();return;}
  if(a==='clearFather'){const keep=collect();D.father=null;drawHTML();restore(keep);return;}
- if(a==='clrSc'){keepSup();D.sc=null;drawSup();return;}
+ if(a==='saveScope'){if(!(D.scs&&D.scs.length)){document.getElementById('eC').classList.add('on');return;}
+  D.busy=true;drawAddScope();const {error}=await SB.from('staff_scopes').insert({staff_id:D.sid,root_id:D.scs[0]});
+  if(error){D.busy=false;drawAddScope();toast(/duplicate|pkey/.test(error.message||'')?'هذا الفرع مضاف له مسبقًا':errMsg(error),true);return;}
+  closeDrawer();await refresh();toast('أُضيف الفرع لإشرافه');return;}
  if(a==='more'){S.limit+=25;render();return;}
  if(a==='saveFam'){const v=document.getElementById('famIn').value.trim();if(!v){toast('اكتب اسم العائلة',true);return;}await saveSettings({family_name:v},'تم حفظ اسم العائلة');return;}
  if(a==='saveMe'){const v=document.getElementById('meIn').value.trim();if(!v){toast('اكتب اسمك',true);return;}
