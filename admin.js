@@ -153,6 +153,7 @@ function vOverview(){
    <div class="card kpi"><span class="l">${ic('user',16)}على قيد الحياة</span><span class="v">${living}</span><span class="d" style="color:var(--muted)">${pool.length?Math.round(living/pool.length*100):0}٪ من ${s?'الفرع':'العائلة'}</span></div>
    <div class="card kpi"><span class="l">${ic('shield',16)}${s?'صلاحياتك':'المشرفون'}</span><span class="v">${s?[s.can_add,s.can_edit,s.can_delete,s.can_publish].filter(Boolean).length+'/4':SUPS.length}</span><span class="d" style="color:var(--muted)">${s?'إضافة · تعديل · حذف · نشر مباشر':(SUPS.length?'يغطّون '+new Set(SUPS.flatMap(x=>scopesOf(x).map(r=>branchOf(r)))).size+' من '+B.length+' فروع':'لم تعيّن مشرفين بعد')}</span></div>
   </div>
+  <div class="grid2" style="margin-bottom:18px">${calCard()}${upcomingCard()}</div>
   <div class="grid2">
    <section class="card"><div class="ch"><h2>طلبات تنتظرك</h2><button class="lnk" type="button" data-view="requests">عرض الكل</button></div>
     <div class="list">${reqRows(reqs.slice(0,4))}</div></section>
@@ -436,6 +437,72 @@ const canMod=r=>isAdmin()||(r&&ME&&r.created_by_email===ME.email);
 const evEnd=e=>e.ends_at?new Date(e.ends_at):new Date(new Date(e.starts_at).getTime()+3*3600e3);
 const albumOfEvent=id=>ALB.find(a=>a.event_id===id);
 const personLabel=id=>by[id]?short(id,3):'';
+
+/* ================= dual calendar: هجري (أم القرى) + ميلادي ================= */
+const dayAt=key=>new Date(key+'T12:00:00+03:00');
+const keyOf=d=>localParts(d).date;
+const addDays=(key,n)=>keyOf(new Date(dayAt(key).getTime()+n*86400000));
+const _hp=new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn',{timeZone:TZ,day:'numeric',month:'numeric',year:'numeric'});
+const hParts=key=>{const p=_hp.formatToParts(dayAt(key));const g=t=>parseInt(p.find(x=>x.type===t).value,10);return {d:g('day'),m:g('month'),y:g('year')};};
+const hMonth=(key,lang)=>new Intl.DateTimeFormat(lang==='en'?'en-u-ca-islamic-umalqura-nu-latn':'ar-SA-u-ca-islamic-umalqura-nu-latn',{timeZone:TZ,month:'long'}).format(dayAt(key));
+const gMonth=(key,lang)=>new Intl.DateTimeFormat(lang==='en'?'en-US':'ar-u-ca-gregory-nu-latn',{timeZone:TZ,month:'long'}).format(dayAt(key));
+const todayKey=()=>keyOf(new Date());
+const KCOL={wedding:'#B08A3E',gathering:'#4F5D2F',meeting:'#2F5D7A',other:'#736D5F'};
+const WD=['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
+if(!S.cal)S.cal={mode:'g',anchor:null,sel:null};
+function monthKeys(mode,anchor){
+ const out=[];
+ if(mode==='g'){const [y,m]=anchor.split('-').map(Number);const n=new Date(Date.UTC(y,m,0)).getUTCDate();for(let i=1;i<=n;i++)out.push(`${y}-${String(m).padStart(2,'0')}-${String(i).padStart(2,'0')}`);return out;}
+ let k=anchor,g=0;while(hParts(k).d>1&&g++<31)k=addDays(k,-1);
+ const m=hParts(k).m;while(hParts(k).m===m&&out.length<31){out.push(k);k=addDays(k,1);}
+ return out;
+}
+function rangeLabel(keys,fn){const a=fn(keys[0]),b=fn(keys[keys.length-1]);return a===b?a:a+' – '+b;}
+function evsByDay(){const m={};EVS.forEach(e=>{const k=keyOf(new Date(e.starts_at));(m[k]=m[k]||[]).push(e);});Object.values(m).forEach(l=>l.sort((a,b)=>new Date(a.starts_at)-new Date(b.starts_at)));return m;}
+function calCard(){
+ const C=S.cal,today=todayKey();C.anchor=C.anchor||today;C.sel=C.sel||today;
+ const keys=monthKeys(C.mode,C.anchor),first=keys[0],last=keys[keys.length-1];
+ const H0=hParts(first),H1=hParts(last),gy0=first.slice(0,4),gy1=last.slice(0,4);
+ const gTitle=k=>gMonth(k)+' '+k.slice(0,4), hTitle=k=>hMonth(k)+' '+hParts(k).y;
+ const main=C.mode==='g'?gTitle(first):hTitle(first)+' هـ';
+ const other=C.mode==='g'?rangeLabel(keys,k=>hMonth(k))+' '+(H0.y===H1.y?H0.y:H0.y+'–'+H1.y)+' هـ':rangeLabel(keys,k=>gMonth(k))+' '+(gy0===gy1?gy0:gy0+'–'+gy1);
+ const en=C.mode==='g'?gMonth(first,'en')+' '+gy0+' · '+rangeLabel(keys,k=>hMonth(k,'en'))+' '+H0.y+' AH':hMonth(first,'en')+' '+H0.y+' AH · '+rangeLabel(keys,k=>gMonth(k,'en'))+' '+gy0;
+ const ev=evsByDay(),lead=dayAt(first).getUTCDay();
+ const cells=Array.from({length:lead},()=>'<span class="cday blank" aria-hidden="true"></span>').join('')+keys.map(k=>{
+  const g=+k.slice(8),h=hParts(k),wd=dayAt(k).getUTCDay(),list=ev[k]||[];
+  const big=C.mode==='g'?g:h.d;
+  const small=C.mode==='g'?(h.d===1?'1 '+hMonth(k):h.d):(g===1?'1 '+gMonth(k):g);
+  const lbl=fmtD({weekday:'long',day:'numeric',month:'long'}).format(dayAt(k))+' · '+fmtD({day:'numeric',month:'long'},true).format(dayAt(k))+(list.length?' · '+list.length+' فعالية':'');
+  return `<button type="button" class="cday${k===today?' today':''}${k===C.sel?' sel':''}${wd===5||wd===6?' wk':''}" data-cday="${k}" aria-label="${esc(lbl)}" aria-pressed="${k===C.sel}"><b>${big}</b><small>${esc(small)}</small>${list.length?`<span class="dots">${list.slice(0,3).map(e=>`<i style="background:${KCOL[e.kind]||KCOL.other}"></i>`).join('')}</span>`:''}</button>`;}).join('');
+ const sel=C.sel,sl=ev[sel]||[];
+ return `<section class="card" id="calCard"><div class="calw">
+  <div class="calhd"><div class="calt"><b>${esc(main)}</b><span>${esc(other)}</span><span class="en" dir="ltr">${esc(en)}</span></div>
+   <div class="calnav"><div class="tabs" role="tablist" aria-label="نوع التقويم"><button type="button" class="tab ${C.mode==='g'?'on':''}" data-cal="g" aria-selected="${C.mode==='g'}">ميلادي</button><button type="button" class="tab ${C.mode==='h'?'on':''}" data-cal="h" aria-selected="${C.mode==='h'}">هجري</button></div>
+    <span style="display:flex;gap:6px"><button type="button" class="ibtn2" data-cal="prev" aria-label="الشهر السابق">›</button><button type="button" class="btn sm" data-cal="today">اليوم</button><button type="button" class="ibtn2" data-cal="next" aria-label="الشهر التالي">‹</button></span></div></div>
+  <div class="cgrid" role="grid">${WD.map((w,i)=>`<span class="cwd${i>=5?' wk':''}">${w}</span>`).join('')}${cells}</div>
+  <div class="cdetail"><div class="cdt"><b>${esc(fmtD({weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(dayAt(sel)))}</b><span>${esc(fmtD({day:'numeric',month:'long',year:'numeric'},true).format(dayAt(sel)))}</span><span dir="ltr">${esc(new Intl.DateTimeFormat('en-GB',{timeZone:TZ,weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(dayAt(sel)))} · ${esc(hParts(sel).d+' '+hMonth(sel,'en')+' '+hParts(sel).y)} AH</span></div>
+   ${sl.length?`<div class="list" style="margin-top:8px">${sl.map(e=>`<div class="li" style="padding:10px 0"><span class="dot" style="background:${KCOL[e.kind]||KCOL.other};width:10px;height:10px"></span><div class="tx"><b>${esc(e.title)}</b><div class="sub">${esc(KIND[e.kind]||'مناسبة')} · ${esc(tOf(new Date(e.starts_at)))}${e.location_name?' · '+esc(e.location_name):''}</div></div>${canMod(e)?`<button class="btn sm" type="button" data-evedit="${e.id}">${ic('edit',15)}تعديل</button>`:''}</div>`).join('')}</div>`:'<div class="sub" style="margin-top:6px">لا توجد فعاليات في هذا اليوم.</div>'}
+   <button class="btn sm" type="button" data-caladd="${sel}" style="margin-top:10px">${ic('plus',15)}فعالية في هذا اليوم</button>
+  </div></div></section>`;
+}
+function upcomingCard(){
+ const now=new Date();const up=EVS.filter(e=>evEnd(e)>=now).sort((a,b)=>new Date(a.starts_at)-new Date(b.starts_at)).slice(0,5);
+ return `<section class="card"><div class="ch"><h2>الفعاليات القادمة</h2><button class="lnk" type="button" data-view="events">عرض الكل</button></div>
+  <div class="list">${up.length?up.map(e=>{const s=new Date(e.starts_at);const days=Math.round((dayAt(keyOf(s))-dayAt(todayKey()))/86400000);
+   return `<div class="li"><span class="ic" style="background:var(--soft);flex-direction:column;width:52px;height:52px;border-radius:14px;line-height:1.1"><b style="font-family:'Reem Kufi',serif;font-size:19px">${esc(fmtD({day:'numeric'}).format(s))}</b><span style="font-size:11px;color:var(--muted)">${esc(fmtD({month:'short'}).format(s))}</span></span>
+   <div class="tx"><b>${esc(e.title)}</b><div class="sub">${esc(hDate(s))} · ${esc(tOf(s))}</div><div class="sub">${days<=0?'اليوم':days===1?'غدًا':'بعد '+days+' يوم'}${e.location_name?' · '+esc(e.location_name):''}</div></div>
+   <span class="dot" style="background:${KCOL[e.kind]||KCOL.other}"></span></div>`;}).join(''):`<div class="empty">لا توجد فعاليات قادمة.<br><button class="btn sm" type="button" data-act="addEv" style="margin-top:10px">${ic('plus',15)}إضافة فعالية</button></div>`}</div></section>`;
+}
+document.addEventListener('click',e=>{
+ if(!ME)return;const t=e.target.closest('[data-cal],[data-cday],[data-caladd]');if(!t)return;
+ const C=S.cal,d=t.dataset;
+ if(d.caladd){D={mode:'ev',edit:null,v:{title:'',date:d.caladd,time:'20:00',end:'',loc:'',map:'',desc:''}};drawEvent();drawer.classList.add('on');scrim.classList.add('on');return;}
+ if(d.cday)C.sel=d.cday;
+ else if(d.cal==='g'||d.cal==='h'){C.mode=d.cal;C.anchor=C.sel;}
+ else if(d.cal==='today'){C.anchor=C.sel=todayKey();}
+ else{const keys=monthKeys(C.mode,C.anchor);C.anchor=d.cal==='prev'?addDays(keys[0],-1):addDays(keys[keys.length-1],1);}
+ const el=document.getElementById('calCard');if(el){el.outerHTML=calCard();const n=document.querySelector(`#calCard [data-cday="${C.sel}"]`)||document.querySelector(`#calCard [data-cal="${d.cal}"]`);if(n&&d.cal!=='today')n.focus({preventScroll:true});}
+});
 
 function vEvents(){
  const now=new Date();

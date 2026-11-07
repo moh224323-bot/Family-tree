@@ -232,6 +232,34 @@ a.btn.p{color:#fff}
 .gform{display:flex;flex-direction:column;gap:14px}
 .gmsg{min-height:1em;font-size:13.5px;color:var(--red);line-height:1.7}
 body.gated .top,body.gated .shell{visibility:hidden}
+.calw{padding:18px}
+.calhd{display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px}
+.calt{display:flex;flex-direction:column;gap:2px;flex:1 1 220px}
+.calt b{font-family:'Reem Kufi',serif;font-size:24px;font-weight:600;line-height:1.2}
+.calt span{font-size:13px;color:var(--muted)}
+.calt .en{font-size:12px;color:var(--faint);text-align:right}
+.calnav{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ibtn2{width:36px;height:36px;border-radius:10px;border:1px solid var(--line2);background:var(--panel);cursor:pointer;font-size:20px;line-height:1;color:var(--text)}
+.ibtn2:hover{border-color:var(--olive)}
+.cgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:16px}
+.cwd{font-size:12px;color:var(--faint);text-align:center;padding:2px 0 6px}
+.cwd.wk,.cday.wk b{color:#8A6A26}
+.cday{position:relative;min-height:58px;border:1.5px solid transparent;border-radius:12px;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1px;padding:7px 2px 12px;font:inherit;color:var(--text)}
+.cday:hover{background:var(--soft)}
+.cday b{font-size:17px;font-weight:600;line-height:1.15}
+.cday small{font-size:10.5px;color:var(--faint);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.cday.today{border-color:var(--olive)}
+.cday.sel{background:var(--olive);border-color:var(--olive);color:#fff}
+.cday.sel b{color:#fff}.cday.sel small{color:#E3E8D2}
+.cday .dots{position:absolute;bottom:5px;display:flex;gap:3px}
+.cday .dots i{width:5px;height:5px;border-radius:50%}
+.cday.sel .dots i{background:#fff!important}
+.cday.blank{visibility:hidden;pointer-events:none}
+.cdetail{margin-top:14px;border-top:1px solid var(--line);padding-top:14px}
+.cdt{display:flex;flex-direction:column;gap:2px}
+.cdt b{font-size:16px}.cdt span{font-size:13px;color:var(--muted)}
+.cdt span[dir=ltr]{text-align:right;font-size:12px;color:var(--faint)}
+@media (max-width:860px){.calw{padding:14px}.cgrid{gap:2px}.cday{min-height:50px;padding:6px 1px 11px;border-radius:10px}.cday b{font-size:15px}.cday small{font-size:9.5px}.calt b{font-size:21px}}
 @media (max-width:860px){
   .shell{grid-template-columns:minmax(0,1fr)}
   .side{position:sticky;top:64px;z-index:15;height:auto;flex-direction:row;overflow-x:auto;padding:8px 10px;border-inline-end:0;border-bottom:1px solid var(--line);gap:4px}
