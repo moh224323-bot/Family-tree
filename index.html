@@ -82,8 +82,8 @@ button{font:inherit;color:inherit}
 /* sunburst */
 .arc{cursor:pointer;transition:opacity .2s}
 .arc.dim{opacity:.28}
-.lbl{pointer-events:none;font-size:11px;font-weight:600;fill:#13190F;user-select:none}
-.ctr-name{font-family:'Reem Kufi',serif;font-size:22px;font-weight:600;fill:#FFFFFF}
+.lbl{pointer-events:none;font-size:11px;font-weight:600;fill:#1E2416;user-select:none}
+.ctr-name{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;font-size:22px;font-weight:700;fill:#FFFFFF}
 .ctr-sub{font-size:12px;fill:#E9E4D3}
 .ctr-up{font-size:12px;fill:#F0DFA8}
 /* tree */
@@ -384,59 +384,95 @@ const DATA=toNode(founder);
 const stage=document.getElementById('stage'); const tip=document.getElementById('tip');
 let fan=null, tree=null;
 
+/* label measuring: real text widths in the page font */
+const _mctx=document.createElement('canvas').getContext('2d');
+const tw=(t,fs,w=600)=>{_mctx.font=`${w} ${fs}px "IBM Plex Sans Arabic", system-ui, sans-serif`;return _mctx.measureText(t).width;};
+// compound names: "عبدالرحمن" / "عبد الرحمن" -> ["عبد","الرحمن"]
+const splitName=n=>{const m=n.match(/^(عبد)\s*(ال\S+.*)$/);if(m)return [m[1],m[2]];const p=n.trim().split(/\s+/);return p.length>1?[p[0],p.slice(1).join(' ')]:null;};
+
 function buildFan(){
-  const box=stage.getBoundingClientRect(); const W=box.width, H=box.height; const S=Math.min(W,H)-16;
-  const radius=S/8;
+  const box=stage.getBoundingClientRect(); const W=box.width, H=box.height; const S=Math.min(W,H)-12;
+  const R0=S/2-2;
+  // centre + three rings; outer rings get more depth because they hold the most (and longest) names
+  const BR=[0,.24,.45,.69,1].map(v=>v*R0);
+  const rOf=y=>{if(y<=0)return 0;if(y>=4)return BR[4]+(y-4)*(BR[4]-BR[3]);const i=Math.floor(y);return BR[i]+(y-i)*(BR[i+1]-BR[i]);};
   const root=d3.hierarchy(DATA).sum(()=>1);
   d3.partition().size([2*Math.PI,root.height+1])(root);
   root.each(d=>d.current=d);
   const map={}; root.each(d=>map[d.data.id]=d);
-  const arc=d3.arc().startAngle(d=>d.x0).endAngle(d=>d.x1).padAngle(d=>Math.min((d.x1-d.x0)/2,.004)).padRadius(radius*1.5)
-    .innerRadius(d=>d.y0*radius).outerRadius(d=>Math.max(d.y0*radius,d.y1*radius-2)).cornerRadius(3);
+  const arc=d3.arc().startAngle(d=>d.x0).endAngle(d=>d.x1).padAngle(d=>Math.min((d.x1-d.x0)/2,.004)).padRadius(R0*.45)
+    .innerRadius(d=>rOf(d.y0)).outerRadius(d=>Math.max(rOf(d.y0),rOf(d.y1)-2)).cornerRadius(4);
   const svg=d3.select(stage).append('svg').attr('viewBox',[-W/2,-H/2,W,H]).attr('role','img').attr('aria-label','مخطط مروحي لشجرة العائلة');
   const g=svg.append('g');
-  // faint rings
-  g.append('g').selectAll('circle').data([1,2,3]).join('circle').attr('r',d=>d*radius+ radius).attr('fill','none').attr('stroke','#EDE4CF');
-  const vis=d=>d.y1<=4&&d.y0>=1&&d.x1>d.x0;
-  const lblVis=d=>d.y1<=4&&d.y0>=1&&(d.x1-d.x0)*((d.y0+d.y1)/2*radius)>12;
-  const lblT=d=>{const x=(d.x0+d.x1)/2*180/Math.PI;const y=(d.y0+d.y1)/2*radius;return `rotate(${x-90}) translate(${y},0) rotate(${x<180?0:180})`;};
+  g.append('g').selectAll('circle').data([BR[2],BR[3],BR[4]]).join('circle').attr('r',d=>d).attr('fill','none').attr('stroke','#EDE4CF');
+  const inView=d=>d.y1<=4&&d.y0>=1&&d.x1>d.x0;
+
+  /* pick the best way to write a name inside its slice:
+     1) along the arc (wide slices), 2) along the radius, 3) two lines for compound names, 4) smaller font. Never cut a name. */
+  function layout(node,c){
+    if(!inView(c))return null;
+    const n=by[node.data.id].n;
+    const r0=rOf(c.y0)+3, r1=rOf(c.y1)-4, rm=(r0+r1)/2, depth=r1-r0, arcLen=(c.x1-c.x0)*rm;
+    for(const fs of [14,13,12,11]) if(tw(n,fs)<=arcLen-14&&fs*1.5<=depth) return {m:'t',fs,lines:[n],rm};
+    for(const fs of [12.5,11.5,10.5]) if(tw(n,fs)<=depth-4&&fs*1.25<=arcLen) return {m:'r',fs,lines:[n],rm};
+    const sp=splitName(n);
+    if(sp) for(const fs of [11,10,9.5,9,8.5]) if(Math.max(tw(sp[0],fs),tw(sp[1],fs))<=depth-2&&fs*2.25<=arcLen) return {m:'r',fs,lines:sp,rm};
+    for(const fs of [9.5,9,8.5]) if(tw(n,fs)<=depth-1&&fs*1.1<=arcLen) return {m:'r',fs,lines:[n],rm};
+    return null;
+  }
+  const xform=(d,L)=>{if(!L)return null;const a=(d.x0+d.x1)/2*180/Math.PI;const rm=(rOf(d.y0)+rOf(d.y1)-2)/2;
+    return L.m==='t'?`rotate(${a}) translate(0,${-rm}) rotate(${a>90&&a<270?180:0})`:`rotate(${a-90}) translate(${rm},0) rotate(${a<180?0:180})`;};
+  function write(el,L){const s=d3.select(el);s.selectAll('tspan').remove();if(!L)return;s.style('font-size',L.fs+'px');
+    if(L.lines.length===1)s.append('tspan').attr('x',0).attr('dy','0.36em').text(L.lines[0]);
+    else{s.append('tspan').attr('x',0).attr('dy','-0.22em').text(L.lines[0]);s.append('tspan').attr('x',0).attr('dy','1.08em').text(L.lines[1]);}}
+
   const nodes=root.descendants().slice(1);
   const path=g.append('g').selectAll('path').data(nodes).join('path')
     .attr('class','arc').attr('fill',d=>colorOf(d.data.id))
-    .attr('fill-opacity',d=>vis(d.current)?1:0).attr('pointer-events',d=>vis(d.current)?'auto':'none')
+    .attr('fill-opacity',d=>inView(d.current)?1:0).attr('pointer-events',d=>inView(d.current)?'auto':'none')
     .attr('d',d=>arc(d.current))
     .on('click',(e,p)=>{select(p.data.id);if(p.children)zoom(p);})
     .on('mousemove',(e,d)=>showTip(e,d.data.id)).on('mouseleave',hideTip);
-  const label=g.append('g').attr('text-anchor','middle').selectAll('text').data(nodes).join('text')
-    .attr('class','lbl').attr('dy','0.35em').attr('fill-opacity',d=>+lblVis(d.current)).attr('transform',d=>lblT(d.current))
-    .text(d=>fit(by[d.data.id].n,(d.y1-d.y0)*radius-10));
+  const label=g.append('g').attr('text-anchor','middle').selectAll('text').data(nodes).join('text').attr('class','lbl');
+  function relabel(){label.each(function(d){d.L=layout(d,d.current);write(this,d.L);}).attr('fill-opacity',d=>d.L?1:0).attr('transform',d=>xform(d.current,d.L));}
+  relabel();
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(relabel);
+
   const sel=g.append('path').attr('fill','none').attr('stroke','#2B2A24').attr('stroke-width',2.5).attr('pointer-events','none');
   const ctr=g.append('g').style('cursor','pointer').on('click',()=>{const f=map[st.focus];if(f.parent){zoom(f.parent);select(f.parent.data.id);}});
-  ctr.append('circle').attr('r',radius-6).attr('fill','#4F5D2F').attr('stroke','#FFFDF8').attr('stroke-width',3);
-  const cName=ctr.append('text').attr('class','ctr-name').attr('text-anchor','middle').attr('dy','-0.15em');
-  const cSub=ctr.append('text').attr('class','ctr-sub').attr('text-anchor','middle').attr('dy','1.35em');
-  const cUp=ctr.append('text').attr('class','ctr-up').attr('text-anchor','middle').attr('dy','3em');
-  function center(){const f=map[st.focus];const x=by[f.data.id];const fs=Math.max(14,Math.min(24,radius*.34));cName.style('font-size',fs+'px').text(fit(x.n,radius*1.7,fs));cSub.style('font-size',Math.max(10,fs*.52)+'px');cUp.style('font-size',Math.max(10,fs*.52)+'px');cSub.text((desc(x.id))+' من الذرية');cUp.text(f.parent?'↑ الرجوع إلى '+by[f.parent.data.id].n:'الجد المؤسس');}
-  function fit(t,w,fs=11){const cw=fs*.58;return t.length*cw<=w?t:(w<cw*3?'':t.slice(0,Math.max(1,Math.floor(w/cw)-1))+'…');}
+  const cR=BR[1]-5;
+  ctr.append('circle').attr('r',cR).attr('fill','#4F5D2F').attr('stroke','#FFFDF8').attr('stroke-width',3);
+  const cName=ctr.append('text').attr('class','ctr-name').attr('text-anchor','middle');
+  const cSub=ctr.append('text').attr('class','ctr-sub').attr('text-anchor','middle');
+  const cUp=ctr.append('text').attr('class','ctr-up').attr('text-anchor','middle');
+  function center(){
+    const f=map[st.focus];const x=by[f.data.id];
+    let fs=Math.min(24,cR*.46);while(fs>11&&tw(x.n,fs,700)>cR*1.62)fs-=.5;
+    const small=Math.max(9.5,Math.min(13,cR*.25));
+    const two=tw(x.n,fs,700)>cR*1.62&&splitName(x.n);
+    cName.selectAll('tspan').remove();cName.text(null).style('font-size',fs+'px').attr('y',-cR*.12);
+    if(two){cName.append('tspan').attr('x',0).attr('dy','-0.35em').text(two[0]);cName.append('tspan').attr('x',0).attr('dy','1.05em').text(two[1]);}
+    else cName.text(x.n);
+    cSub.style('font-size',small+'px').attr('y',cR*.3).text(desc(x.id)+' من الذرية');
+    cUp.style('font-size',small+'px').attr('y',cR*.3+small*1.45).text(f.parent?'↑ رجوع':'الجد المؤسس');
+  }
   function zoom(p){
     st.focus=p.data.id; renderCrumbs(); center();
     root.each(d=>d.target={x0:Math.max(0,Math.min(1,(d.x0-p.x0)/(p.x1-p.x0)))*2*Math.PI,x1:Math.max(0,Math.min(1,(d.x1-p.x0)/(p.x1-p.x0)))*2*Math.PI,y0:Math.max(0,d.y0-p.depth),y1:Math.max(0,d.y1-p.depth)});
     const t=svg.transition().duration(700).ease(d3.easeCubicInOut);
     path.transition(t).tween('data',d=>{const i=d3.interpolate(d.current,d.target);return t=>d.current=i(t);})
-      .filter(function(d){return +this.getAttribute('fill-opacity')||vis(d.target);})
-      .attr('fill-opacity',d=>vis(d.target)?1:0).attr('pointer-events',d=>vis(d.target)?'auto':'none')
+      .filter(function(d){return +this.getAttribute('fill-opacity')||inView(d.target);})
+      .attr('fill-opacity',d=>inView(d.target)?1:0).attr('pointer-events',d=>inView(d.target)?'auto':'none')
       .attrTween('d',d=>()=>arc(d.current));
-    label.filter(function(d){return +this.getAttribute('fill-opacity')||lblVis(d.target);}).transition(t)
-      .attr('fill-opacity',d=>+lblVis(d.target)).attrTween('transform',d=>()=>lblT(d.current))
-      .on('end',function(d){d3.select(this).text(fit(by[d.data.id].n,(d.y1-d.y0)*radius-10));});
+    // labels: fade out, move with the slices, then re-fit to the new space
+    label.transition(t).attr('fill-opacity',0).attrTween('transform',d=>()=>xform(d.current,d.L)||'')
+      .on('end',function(d){d.L=layout(d,d.current);write(this,d.L);d3.select(this).attr('transform',xform(d.current,d.L)).transition().duration(220).attr('fill-opacity',d.L?1:0);});
     sel.transition(t).attrTween('d',()=>()=>selPath());
   }
-  function selPath(){const d=map[st.sel];if(!d||d.depth===0||!vis(d.current))return '';return arc(d.current);}
-  function mark(){
-    const A=new Set(anc(st.sel)); const B=new Set(anc(st.cmp));
-    path.classed('dim',false); sel.attr('d',selPath());
-  }
+  function selPath(){const d=map[st.sel];if(!d||d.depth===0||!inView(d.current))return '';return arc(d.current);}
+  function mark(){path.classed('dim',false); sel.attr('d',selPath());}
   center(); mark();
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(center);
   return {zoom:id=>zoom(map[id]),mark,focusFor:id=>{const d=map[id];return d.children?d:(d.parent||d);}};
 }
 
