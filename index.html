@@ -194,7 +194,7 @@ footer{max-width:1400px;margin:0 auto;padding:10px 22px 40px;display:flex;flex-w
   .stage{height:100vw;min-height:340px}
   .ctool{padding:12px}
   .seg button{padding:0 12px}
-  .hint{display:none}
+  .hint{left:0;right:0;bottom:6px;text-align:center;font-size:11.5px}
   .hero .pat{display:none}
 }
 
@@ -394,8 +394,10 @@ function buildFan(){
   const box=stage.getBoundingClientRect(); const W=box.width, H=box.height; const S=Math.min(W,H)-12;
   const R0=S/2-2;
   // centre + three rings; outer rings get more depth because they hold the most (and longest) names
-  const BR=[0,.24,.45,.69,1].map(v=>v*R0);
-  const rOf=y=>{if(y<=0)return 0;if(y>=4)return BR[4]+(y-4)*(BR[4]-BR[3]);const i=Math.floor(y);return BR[i]+(y-i)*(BR[i+1]-BR[i]);};
+  // phones show two rings at a time (more room per name); larger screens show three. Tap a branch to go deeper.
+  const K=W<560?2:3;
+  const BR=(K===2?[0,.3,.63,1]:[0,.24,.45,.69,1]).map(v=>v*R0);
+  const rOf=y=>{if(y<=0)return 0;if(y>=K+1)return BR[K+1]+(y-K-1)*(BR[K+1]-BR[K]);const i=Math.floor(y);return BR[i]+(y-i)*(BR[i+1]-BR[i]);};
   const root=d3.hierarchy(DATA).sum(()=>1);
   d3.partition().size([2*Math.PI,root.height+1])(root);
   root.each(d=>d.current=d);
@@ -404,8 +406,8 @@ function buildFan(){
     .innerRadius(d=>rOf(d.y0)).outerRadius(d=>Math.max(rOf(d.y0),rOf(d.y1)-2)).cornerRadius(4);
   const svg=d3.select(stage).append('svg').attr('viewBox',[-W/2,-H/2,W,H]).attr('role','img').attr('aria-label','مخطط مروحي لشجرة العائلة');
   const g=svg.append('g');
-  g.append('g').selectAll('circle').data([BR[2],BR[3],BR[4]]).join('circle').attr('r',d=>d).attr('fill','none').attr('stroke','#EDE4CF');
-  const inView=d=>d.y1<=4&&d.y0>=1&&d.x1>d.x0;
+  g.append('g').selectAll('circle').data(BR.slice(2)).join('circle').attr('r',d=>d).attr('fill','none').attr('stroke','#EDE4CF');
+  const inView=d=>d.y1<=K+1&&d.y0>=1&&d.x1>d.x0;
 
   /* pick the best way to write a name inside its slice:
      1) along the arc (wide slices), 2) along the radius, 3) two lines for compound names, 4) smaller font. Never cut a name. */
@@ -438,6 +440,12 @@ function buildFan(){
   relabel();
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(relabel);
 
+  // small dots on the outer edge: this branch has more generations beyond the visible rings
+  const deeper=g.append('g').attr('pointer-events','none').selectAll('g').data(nodes.filter(d=>d.children)).join('g');
+  deeper.selectAll('circle').data([-5,0,5]).join('circle').attr('cx',d=>d).attr('r',1.6).attr('fill','#2B2A24').attr('fill-opacity',.4);
+  const dotT=c=>{const a=(c.x0+c.x1)/2*180/Math.PI;return `rotate(${a}) translate(0,${-(rOf(c.y1)-7)})`;};
+  const dotOn=c=>inView(c)&&Math.abs(c.y1-(K+1))<.01&&(c.x1-c.x0)*rOf(c.y1)>18;
+  deeper.attr('transform',d=>dotT(d.current)).attr('opacity',d=>dotOn(d.current)?1:0);
   const sel=g.append('path').attr('fill','none').attr('stroke','#2B2A24').attr('stroke-width',2.5).attr('pointer-events','none');
   const ctr=g.append('g').style('cursor','pointer').on('click',()=>{const f=map[st.focus];if(f.parent){zoom(f.parent);select(f.parent.data.id);}});
   const cR=BR[1]-5;
@@ -467,6 +475,7 @@ function buildFan(){
     // labels: fade out, move with the slices, then re-fit to the new space
     label.transition(t).attr('fill-opacity',0).attrTween('transform',d=>()=>xform(d.current,d.L)||'')
       .on('end',function(d){d.L=layout(d,d.current);write(this,d.L);d3.select(this).attr('transform',xform(d.current,d.L)).transition().duration(220).attr('fill-opacity',d.L?1:0);});
+    deeper.transition(t).attr('opacity',0).attrTween('transform',d=>()=>dotT(d.current)).on('end',function(d){d3.select(this).transition().duration(220).attr('opacity',dotOn(d.current)?1:0);});
     sel.transition(t).attrTween('d',()=>()=>selPath());
   }
   function selPath(){const d=map[st.sel];if(!d||d.depth===0||!inView(d.current))return '';return arc(d.current);}
@@ -536,7 +545,7 @@ function hideTip(){tip.style.opacity=0;}
 function mount(){
   stage.querySelectorAll('svg').forEach(s=>s.remove());
   fan=tree=null;
-  if(st.view==='fan'){fan=buildFan(); if(st.focus!==founder.id) fan.zoom(st.focus); document.getElementById('hint').textContent='اضغط على أي فرع للدخول فيه · اضغط المنتصف للرجوع';}
+  if(st.view==='fan'){fan=buildFan(); if(st.focus!==founder.id) fan.zoom(st.focus); document.getElementById('hint').textContent=stage.clientWidth<560?'اضغط أي فرع لتشوف أبناءه · المنتصف للرجوع':'اضغط على أي فرع للدخول فيه · اضغط المنتصف للرجوع';}
   else {tree=buildTree(); tree.reveal(st.sel); document.getElementById('hint').textContent='اسحب للتنقّل · قرّب بالعجلة أو بإصبعين · اضغط الاسم لفتح فروعه';}
   renderCrumbs();
 }
