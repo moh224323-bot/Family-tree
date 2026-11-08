@@ -332,7 +332,9 @@ if(window.applySiteMode) window.applySiteMode(window.__siteMode);
 const P=[]; const by={};
 rows.forEach(r=>{const x={id:r.id,n:r.first_name,p:r.father_id||0,b:r.birth_year||null,d:r.death_year||null,dead:!!r.is_dead||!!r.death_year,g:(r.gender||'m').trim(),ph:r.photo_path||null,kids:[]};P.push(x);by[x.id]=x;});
 P.forEach(x=>{if(x.p&&by[x.p])by[x.p].kids.push(x.id);});
-P.forEach(x=>x.kids.sort((a,b)=>(by[a].b||9999)-(by[b].b||9999)||a-b));
+// siblings: entry order, and those with a known birth year are arranged oldest-first among themselves
+// (a sibling without a year keeps his place instead of being pushed to the end)
+P.forEach(x=>{const ids=x.kids.slice().sort((a,b)=>a-b);const slots=[],known=[];ids.forEach((id,i)=>{if(by[id].b){slots.push(i);known.push(id);}});known.sort((a,b)=>by[a].b-by[b].b||a-b);slots.forEach((i,j)=>ids[i]=known[j]);x.kids=ids;});
 const founder = P.find(x=>!x.p);
 if(!founder){
   document.querySelector('.wrap').innerHTML='<section class="card blank"><svg width="64" height="64" viewBox="0 0 36 36" fill="none" stroke="#4F5D2F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 33V17"/><path d="M18 22l-6-5"/><path d="M18 19l6-5"/><circle cx="18" cy="9" r="4"/><circle cx="9" cy="14" r="3"/><circle cx="27" cy="11" r="3"/><path d="M11 33h14"/></svg><h2>الشجرة قيد الإعداد</h2><p>لم تُضف أسماء العائلة بعد. عُد إلينا قريبًا بإذن الله.</p></section>';

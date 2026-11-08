@@ -99,7 +99,9 @@ async function loadAll(){
  const base=new Map();(tr.data||[]).forEach(r=>base.set(r.id,r));(pp.data||[]).forEach(r=>base.set(r.id,r));
  base.forEach((t,id)=>{const r=det[id]||t;const x={id,n:r.first_name,p:r.father_id||0,b:r.birth_year,d:r.death_year,dead:!!r.is_dead||r.death_year!=null,g:String(r.gender||'m').trim(),vis:r.visibility||'public',ph:r.phone||'',nt:r.notes||'',by:r.created_by_name||'',at:r.created_at||null,photo:r.photo_path||t.photo_path||null,kids:[]};P.push(x);by[x.id]=x;});
  P.forEach(x=>{if(x.p&&by[x.p])by[x.p].kids.push(x.id);});
- P.forEach(x=>x.kids.sort((a,b)=>(by[a].b||9999)-(by[b].b||9999)||a-b));
+ // siblings: entry order, and those with a known birth year are arranged oldest-first among themselves
+// (a sibling without a year keeps his place instead of being pushed to the end)
+P.forEach(x=>{const ids=x.kids.slice().sort((a,b)=>a-b);const slots=[],known=[];ids.forEach((id,i)=>{if(by[id].b){slots.push(i);known.push(id);}});known.sort((a,b)=>by[a].b-by[b].b||a-b);slots.forEach((i,j)=>ids[i]=known[j]);x.kids=ids;});
  founder=P.find(x=>!x.p)||null;
  B=founder?founder.kids:[];
  bColor={};B.forEach((c,i)=>bColor[c]=PAL[i%PAL.length]);if(founder)bColor[founder.id]='#4F5D2F';
