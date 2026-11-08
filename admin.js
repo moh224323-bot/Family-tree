@@ -107,7 +107,7 @@ async function loadAll(){
  P=[];by={};
  const det={};(pp.data||[]).forEach(r=>det[r.id]=r);
  const base=new Map();(tr.data||[]).forEach(r=>base.set(r.id,r));(pp.data||[]).forEach(r=>base.set(r.id,r));
- base.forEach((t,id)=>{const r=det[id]||t;const x={id,n:r.first_name,p:r.father_id||0,b:r.birth_year,d:r.death_year,dead:!!r.is_dead||r.death_year!=null,g:String(r.gender||'m').trim(),vis:r.visibility||'public',ph:r.phone||'',nt:r.notes||'',by:r.created_by_name||'',at:r.created_at||null,photo:r.photo_path||t.photo_path||null,mom:r.mother_marriage_id||null,bio:r.bio||'',kids:[]};P.push(x);by[x.id]=x;});
+ base.forEach((t,id)=>{const r=det[id]||t;const x={id,n:r.first_name,p:r.father_id||0,b:r.birth_year,d:r.death_year,dead:!!r.is_dead||r.death_year!=null,g:String(r.gender||'m').trim(),vis:r.visibility||'public',ph:r.phone||'',nt:r.notes||'',by:r.created_by_name||'',at:r.created_at||null,photo:r.photo_path||t.photo_path||null,mom:r.mother_marriage_id||null,bio:r.bio||'',occ:r.occupation||'',kids:[]};P.push(x);by[x.id]=x;});
  P.forEach(x=>{if(x.p&&by[x.p])by[x.p].kids.push(x.id);});
  // siblings: entry order, and those with a known birth year are arranged oldest-first among themselves
 // (a sibling without a year keeps his place instead of being pushed to the end)
@@ -177,7 +177,7 @@ function vOverview(){
 
 function filtered(){
  const qq=norm(S.q);
- return P.filter(x=>inScope(x.id)&&(S.branch==='all'||branchOf(x.id)===+S.branch)&&(S.genF==='all'||gen(x.id)===+S.genF)&&(S.status==='all'||(S.status==='alive'?!x.dead:x.dead))&&(!qq||norm(fullName(x.id)).includes(qq)))
+ return P.filter(x=>inScope(x.id)&&(S.branch==='all'||branchOf(x.id)===+S.branch)&&(S.genF==='all'||gen(x.id)===+S.genF)&&(S.status==='all'||(S.status==='alive'?!x.dead:x.dead))&&(!qq||norm(fullName(x.id)).includes(qq)||(x.occ&&norm(x.occ).includes(qq))))
   .sort((a,b)=>(b.id===S.fresh)-(a.id===S.fresh)||new Date(b.at||0)-new Date(a.at||0));
 }
 function vMembers(){
@@ -189,13 +189,13 @@ function vMembers(){
   ${scopeBar()}
   <section class="card">
    <div class="tools">
-    <label class="search">${ic('search',18,'#736D5F')}<input id="mq" type="search" placeholder="ابحث بالاسم أو النسب، مثل: محمد بن صالح" value="${esc(S.q)}" aria-label="بحث في الأفراد"></label>
+    <label class="search">${ic('search',18,'#736D5F')}<input id="mq" type="search" placeholder="ابحث بالاسم أو النسب أو المهنة، مثل: محمد بن صالح" value="${esc(S.q)}" aria-label="بحث في الأفراد"></label>
     ${s||!B.length?'':`<select class="sel" id="fb" aria-label="الفرع"><option value="all">كل الفروع</option>${B.map(b=>`<option value="${b}" ${S.branch==b?'selected':''}>فرع ${esc(by[b].n)}</option>`).join('')}</select>`}
     <select class="sel" id="fg" aria-label="الجيل"><option value="all">كل الأجيال</option>${Array.from({length:maxG},(_,i)=>i+1).map(g=>`<option value="${g}" ${S.genF==g?'selected':''}>الجيل ${g}</option>`).join('')}</select>
     <select class="sel" id="fs" aria-label="الحالة"><option value="all">الكل</option><option value="alive" ${S.status==='alive'?'selected':''}>الأحياء</option><option value="dead" ${S.status==='dead'?'selected':''}>المتوفون</option></select>
    </div>
    <div class="tw"><table><thead><tr><th>الفرد</th><th>الفرع</th><th>الجيل</th><th>الميلاد</th><th>الحالة</th><th>الأبناء</th><th>أُضيف بواسطة</th><th></th></tr></thead><tbody>
-   ${shown.map(x=>`<tr class="${x.id===S.fresh?'new':''}"><td><div class="who">${avatar(x.id)}<span><b>${esc(x.n)}${x.g==='f'?' <span class="badge b-mute" style="height:20px;font-size:11px">أنثى</span>':''}${x.vis==='staff'?' <span class="badge b-gold" style="height:20px;font-size:11px">مخفي</span>':''}${x.bio?' <span class="badge b-blue" style="height:20px;font-size:11px">سيرة</span>':''}</b><span class="sub">${esc(fullName(x.id).split(' بن ').slice(1,4).join(' بن ')||'الجد المؤسس')}${x.mom&&marById(x.mom)?' · أمه: '+esc(wifeFull(marById(x.mom))):''}${x.g!=='f'&&wivesOf(x.id).length?' · '+wivesOf(x.id).length+(wivesOf(x.id).length===1?' زوجة':' زوجات'):''}</span></span></div></td>
+   ${shown.map(x=>`<tr class="${x.id===S.fresh?'new':''}"><td><div class="who">${avatar(x.id)}<span><b>${esc(x.n)}${x.g==='f'?' <span class="badge b-mute" style="height:20px;font-size:11px">أنثى</span>':''}${x.vis==='staff'?' <span class="badge b-gold" style="height:20px;font-size:11px">مخفي</span>':''}${x.bio?' <span class="badge b-blue" style="height:20px;font-size:11px">سيرة</span>':''}</b><span class="sub">${x.occ?'<b style="font-weight:600;color:var(--text)">'+esc(x.occ)+'</b> · ':''}${esc(fullName(x.id).split(' بن ').slice(1,4).join(' بن ')||'الجد المؤسس')}${x.mom&&marById(x.mom)?' · أمه: '+esc(wifeFull(marById(x.mom))):''}${x.g!=='f'&&wivesOf(x.id).length?' · '+wivesOf(x.id).length+(wivesOf(x.id).length===1?' زوجة':' زوجات'):''}</span></span></div></td>
     <td><span style="display:inline-flex;align-items:center;gap:7px"><i class="dot" style="background:${colorOf(x.id)}"></i>${x.id===founder.id?'—':esc(by[branchOf(x.id)].n)}</span></td>
     <td>${gen(x.id)}</td><td>${x.b||'—'}</td>
     <td>${x.dead?`<span class="badge b-mute">${x.g==='f'?'توفيت':'توفي'}${x.d?' '+x.d:''}</span>`:'<span class="badge b-ok">حي</span>'}</td>
@@ -312,6 +312,7 @@ function drawHTML(){
   ${D.status==='dead'?`<div class="f"><label for="dy">سنة الوفاة <span class="sub">(اختياري)</span></label><input class="inp" id="dy" inputmode="numeric" value="${x&&x.d?x.d:''}" placeholder="مثال: 2020"><span class="err" id="eD">سنة الوفاة غير منطقية</span></div>`:''}
   <div class="f"><label for="ph">رقم الجوال <span class="sub">(اختياري، لا يظهر في الموقع)</span></label><input class="inp" id="ph" inputmode="tel" maxlength="20" value="${x?esc(x.ph):''}" placeholder="05XXXXXXXX"></div>
   <div class="f"><span class="lb">من يرى هذا الفرد</span><div class="segm" data-seg="vis"><button type="button" class="${D.vis==='public'?'on':''}" data-v="public">الجميع</button><button type="button" class="${D.vis==='staff'?'on':''}" data-v="staff">المشرفون فقط</button></div>${D.vis==='staff'?'<span class="h">لن يظهر هو ولا ذريته في الموقع العام.</span>':D.g==='f'&&!SET.show_women?'<span class="h">أسماء البنات مخفية حاليًا عن الموقع العام من إعدادات الخصوصية.</span>':''}</div>
+  <div class="f"><label for="occ">المهنة <span class="sub">(اختياري، تظهر تحت اسمه في الموقع)</span></label><input class="inp" id="occ" maxlength="60" list="occList" value="${x?esc(x.occ):''}" placeholder="مثال: مهندس مدني، معلم، طبيب، رجل أعمال، طالب، متقاعد"><datalist id="occList">${[...new Set(P.map(p=>p.occ).filter(Boolean))].sort().map(o=>`<option value="${esc(o)}">`).join('')}</datalist></div>
   <div class="f"><label for="bio">السيرة الذاتية <span class="sub">(اختياري، تظهر في بطاقته بالموقع)</span></label><textarea class="inp" id="bio" maxlength="4000" rows="5" style="min-height:120px" placeholder="نبذة عن حياته: مكان الولادة، الدراسة، العمل، المناصب، الإنجازات، مواقف يذكرها أهله…">${x?esc(x.bio):''}</textarea><span class="h" id="bioN">${x&&x.bio?x.bio.length:0} / 4000</span></div>
   <div class="f"><label for="nt">ملاحظة داخلية <span class="sub">(اختياري)</span></label><textarea class="inp" id="nt" maxlength="1000" placeholder="مصدر المعلومة، أو أي توضيح">${x?esc(x.nt):''}</textarea></div>
   ${x&&x.g!=='f'?wivesSummary(x.id):''}
@@ -347,7 +348,7 @@ function bindDrawer(){
   const res=P.filter(x=>x.g!=='f'&&inScope(x.id)&&norm(fullName(x.id)).includes(v)).sort((a,b)=>gen(a.id)-gen(b.id)).slice(0,10);
   fo.innerHTML=res.length?res.map(x=>`<button type="button" class="opt" data-father="${x.id}">${avatar(x.id)}<span>${esc(x.n)}<small>${esc(fullName(x.id).split(' بن ').slice(1,5).join(' بن ')||'الجد المؤسس')} · ج${gen(x.id)}</small></span></button>`).join(''):'<div class="empty" style="padding:14px">لا يوجد اسم مطابق'+(curSup()?' في فرعك':'')+'</div>';fo.classList.add('on');};}
 }
-function collect(){const g=id=>{const e=document.getElementById(id);return e?e.value:undefined;};return {nm:g('nm'),by:g('by'),dy:g('dy'),ph:g('ph'),nt:g('nt'),bio:g('bio')};}
+function collect(){const g=id=>{const e=document.getElementById(id);return e?e.value:undefined;};return {nm:g('nm'),by:g('by'),dy:g('dy'),ph:g('ph'),nt:g('nt'),bio:g('bio'),occ:g('occ')};}
 function restore(v){Object.entries(v).forEach(([k,val])=>{const e=document.getElementById(k);if(e&&val!==undefined)e.value=val;});preview();}
 const toYear=v=>{v=String(v||'').trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));return v===''?null:(/^\d{4}$/.test(v)?+v:NaN);};
 async function saveMember(){
@@ -362,7 +363,7 @@ async function saveMember(){
  const dyr=D.status==='dead'?toYear(v.dy):null;
  if(D.status==='dead')show('eD',Number.isNaN(dyr)||(dyr!=null&&(dyr<1600||dyr>YEAR||(yr&&dyr<yr))));
  if(!ok)return;
- const row={first_name:nm,gender:D.g,birth_year:yr,death_year:D.status==='dead'?dyr:null,is_dead:D.status==='dead',visibility:D.vis,phone:(v.ph||'').trim()||null,notes:(v.nt||'').trim()||null,bio:(v.bio||'').trim()||null};
+ const row={first_name:nm,gender:D.g,birth_year:yr,death_year:D.status==='dead'?dyr:null,is_dead:D.status==='dead',visibility:D.vis,phone:(v.ph||'').trim()||null,notes:(v.nt||'').trim()||null,bio:(v.bio||'').trim()||null,occupation:(v.occ||'').trim()||null};
  const momOk=D.mom&&marById(+D.mom)&&marById(+D.mom).husband_id===fth; if(fth&&wivesOf(fth).length)row.mother_marriage_id=momOk?+D.mom:null;
  D.busy=true;drawHTML();restore(v);
  const oldPhoto=D.edit?by[D.edit].photo:null;let newPhoto=null;
@@ -382,7 +383,7 @@ async function saveMember(){
    S.fresh=data.id;S.view='members';S.q='';closeDrawer();await refresh();
    toast(wasFounder?`تمت إضافة ${nm} جدًّا مؤسسًا للشجرة`:`تمت إضافة ${nm} ${row.gender==='f'?'بنت':'بن'} ${by[fth]?by[fth].n:''} للشجرة`);return;
   }
-  const {error}=await SB.from('requests').insert({kind:'add',father_id:fth,payload:{name:nm,gender:D.g,birth_year:yr,death_year:row.death_year,note:row.notes,photo_path:newPhoto||undefined,mother_marriage_id:row.mother_marriage_id||undefined,bio:row.bio||undefined},submitter_name:myName(),source:'supervisor',submitted_by_email:ME.email,status:'pending'});if(error)throw error;
+  const {error}=await SB.from('requests').insert({kind:'add',father_id:fth,payload:{name:nm,gender:D.g,birth_year:yr,death_year:row.death_year,note:row.notes,photo_path:newPhoto||undefined,mother_marriage_id:row.mother_marriage_id||undefined,bio:row.bio||undefined,occupation:row.occupation||undefined},submitter_name:myName(),source:'supervisor',submitted_by_email:ME.email,status:'pending'});if(error)throw error;
   S.view='requests';S.rqTab='all';closeDrawer();await refresh();toast('أُرسل الطلب للمدير العام للاعتماد');
  }catch(e){if(newPhoto)SB.storage.from('photos').remove([newPhoto]).catch(()=>{});if(D){D.busy=false;drawHTML();restore(v);}toast(errMsg(e),true);}
 }
