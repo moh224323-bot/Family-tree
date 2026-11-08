@@ -116,6 +116,13 @@ button{font:inherit;color:inherit}
 .nums span{font-size:12px;color:var(--muted)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{min-height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--line2);background:var(--bg2);cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px}
+.moms{display:flex;flex-direction:column;gap:10px}
+.mom{border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--bg2)}
+.momh{display:flex;align-items:center;gap:10px}
+.momh .mo{width:26px;height:26px;border-radius:50%;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--muted);flex:none}
+.momh span{display:flex;flex-direction:column;line-height:1.4}
+.momh b{font-size:14px;font-weight:600}
+.momh small{font-size:12px;color:var(--faint)}
 .chip:hover{border-color:var(--gold);color:var(--gold2)}
 .chip small{color:var(--faint);font-size:12px}
 .acts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -309,10 +316,11 @@ body.prev-admin{padding-top:36px}
 if(document.readyState==='loading') await new Promise(r=>document.addEventListener('DOMContentLoaded',r,{once:true}));
 const asVisitor = new URLSearchParams(location.search).get('as')==='visitor';
 const SB = window.supabase.createClient(window.FT_CONFIG.url, window.FT_CONFIG.key, asVisitor?{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'ft-visitor-preview'}}:undefined);
-let site={}, rows=[];
+let site={}, rows=[], MOMS={visible:false};
 try{
   const st0 = await SB.rpc('get_site_status'); if(st0.error) throw st0.error; site = st0.data||{};
   const tr0 = await SB.rpc('get_family_tree'); if(tr0.error) throw tr0.error; rows = tr0.data||[];
+  try{const m0=await SB.rpc('get_mothers'); if(!m0.error&&m0.data) MOMS=m0.data;}catch(_){}
 }catch(err){
   document.querySelector('.wrap').innerHTML='<section class="card blank"><h2>تعذّر تحميل الشجرة</h2><p>تحقق من اتصالك بالإنترنت ثم حدّث الصفحة.</p></section>';
   document.getElementById('stats').innerHTML='';
@@ -560,6 +568,30 @@ function renderCrumbs(){
 }
 
 /* ---------- person panel ---------- */
+/* ---------- mothers (only when the admin allows it) ---------- */
+const MAR=(MOMS.visible&&MOMS.marriages)||[];
+const momOf=id=>{const m=MOMS.visible&&MOMS.links?MOMS.links[String(id)]:null;return m?MAR.find(x=>x.id===m)||null:null;};
+const wivesOf=id=>MAR.filter(m=>m.husband_id===id).sort((a,b)=>a.order-b.order);
+const ORDN=['الأولى','الثانية','الثالثة','الرابعة','الخامسة','السادسة'];
+const wifeT=m=>esc(m.name)+(m.family?' '+esc(m.family):'');
+const kidChip=c=>`<button type="button" class="chip" data-sel="${c}">${esc(by[c].n)}${by[c].kids.length?` <small>${by[c].kids.length}</small>`:''}</button>`;
+function kidsBlock(x){
+  if(!x.kids.length)return '';
+  const w=wivesOf(x.id);
+  if(!w.length)return `<div><div class="k">الأبناء</div><div class="chips">${x.kids.map(kidChip).join('')}</div></div>`;
+  const groups=w.map(m=>({m,ids:x.kids.filter(c=>{const mm=momOf(c);return mm&&mm.id===m.id;})}));
+  const rest=x.kids.filter(c=>!momOf(c));
+  return `<div><div class="k">الزوجات والأبناء</div><div class="moms">${groups.map(g=>`<div class="mom"><div class="momh"><span class="mo">${g.m.order}</span><span><b>${wifeT(g.m)}</b><small>الزوجة ${ORDN[g.m.order-1]||g.m.order}${g.m.status==='deceased'?' · رحمها الله':''}</small></span></div>${g.ids.length?`<div class="chips">${g.ids.map(kidChip).join('')}</div>`:'<div class="k" style="margin:0">لا أبناء مسجّلين منها</div>'}</div>`).join('')}
+   ${rest.length?`<div class="mom"><div class="momh"><span class="mo">؟</span><span><b>أبناء لم تُحدَّد أمهم</b></span></div><div class="chips">${rest.map(kidChip).join('')}</div></div>`:''}</div></div>`;
+}
+function sibsBlock(x,sibs){
+  if(!sibs.length)return '';
+  const mm=momOf(x.id);
+  if(!mm)return `<div><div class="k">الإخوة</div><div class="chips">${sibs.map(c=>`<button type="button" class="chip" data-sel="${c}">${esc(by[c].n)}</button>`).join('')}</div></div>`;
+  const full=sibs.filter(c=>{const o=momOf(c);return o&&o.id===mm.id;}), half=sibs.filter(c=>{const o=momOf(c);return o&&o.id!==mm.id;}), unk=sibs.filter(c=>!momOf(c));
+  const ch=l=>l.map(c=>`<button type="button" class="chip" data-sel="${c}">${esc(by[c].n)}</button>`).join('');
+  return (full.length?`<div><div class="k">الأشقّاء</div><div class="chips">${ch(full)}</div></div>`:'')+(half.length?`<div><div class="k">الإخوة من الأب</div><div class="chips">${ch(half)}</div></div>`:'')+(unk.length?`<div><div class="k">${full.length||half.length?'إخوة آخرون':'الإخوة'}</div><div class="chips">${ch(unk)}</div></div>`:'');
+}
 function renderPerson(){
   const x=by[st.sel]; const f=by[x.p]; const a=anc(x.id);
   const grand=x.kids.reduce((n,c)=>n+by[c].kids.length,0);
@@ -572,8 +604,9 @@ function renderPerson(){
      <div><div class="k">النسب الكامل</div><div class="lineage">${lin}</div></div>
      <div class="nums"><div><b>${x.kids.length}</b><span>الأبناء</span></div><div><b>${grand}</b><span>الأحفاد</span></div><div><b>${desc(x.id)}</b><span>الذرية</span></div><div><b>${sibs.length}</b><span>الإخوة</span></div></div>
      ${f?`<div><div class="k">الأب</div><div class="chips"><button type="button" class="chip" data-sel="${f.id}">${esc(short(f.id))}</button></div></div>`:''}
-     ${x.kids.length?`<div><div class="k">الأبناء</div><div class="chips">${x.kids.map(c=>`<button type="button" class="chip" data-sel="${c}">${esc(by[c].n)}${by[c].kids.length?` <small>${by[c].kids.length}</small>`:''}</button>`).join('')}</div></div>`:''}
-     ${sibs.length?`<div><div class="k">الإخوة</div><div class="chips">${sibs.map(c=>`<button type="button" class="chip" data-sel="${c}">${esc(by[c].n)}</button>`).join('')}</div></div>`:''}
+     ${momOf(x.id)?`<div><div class="k">الأم</div><div class="chips">${momOf(x.id).wife_person_id&&by[momOf(x.id).wife_person_id]?`<button type="button" class="chip" data-sel="${momOf(x.id).wife_person_id}">${wifeT(momOf(x.id))}</button>`:`<span class="chip" style="cursor:default">${wifeT(momOf(x.id))}</span>`}</div></div>`:''}
+     ${kidsBlock(x)}
+     ${sibsBlock(x,sibs)}
      <div class="acts"><button type="button" class="btn g" id="showIn">اعرضه في الشجرة</button><button type="button" class="btn" id="cmpWith">قارن معه</button></div>
     </div>`;
 }
@@ -585,7 +618,7 @@ function relation(A,B){
   if(a===0&&b===0) r=null;
   else if(a===0) r= b===1?'ابن':b===2?'حفيد':b===3?'ابن حفيد':'من ذرية';
   else if(b===0) r= a===1?'والد':a===2?'جدّ':a===3?'والد جدّ':'جدّ أعلى لـ';
-  else if(a===1&&b===1) r='أخو';
+  else if(a===1&&b===1){const ma=momOf(A),mb=momOf(B);r=ma&&mb?(ma.id===mb.id?'شقيق':'أخو (من الأب)'):'أخو';}
   else if(a===1) r= b===2?'ابن أخ':b===3?'حفيد أخ':'من ذرية أخ';
   else if(b===1) r= a===2?'عمّ':a===3?'عمّ والد':a===4?'عمّ جدّ':'عمّ أعلى لـ';
   else if(a===2&&b===2) r='ابن عمّ';

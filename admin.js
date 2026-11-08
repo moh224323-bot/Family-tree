@@ -7,6 +7,7 @@ let ME=null;              // staff row of the signed-in user
 let P=[], by={}, founder=null, B=[];
 let SUPS=[], REQS=[], LOG=[];
 let EVS=[], ALB=[], PH={};
+let MAR=[];               // marriages (wives)
 let SET={};
 const S={view:'overview',q:'',branch:'all',genF:'all',status:'all',limit:25,rqTab:'all',fresh:null,pvDev:'d',pvViewer:'visitor'};
 
@@ -28,6 +29,13 @@ function ago(ts){if(!ts)return '';const d=(Date.now()-new Date(ts).getTime())/10
  if(d<60)return 'الآن';if(d<3600)return 'قبل '+Math.round(d/60)+' دقيقة';if(d<86400)return 'قبل '+Math.round(d/3600)+' ساعة';if(d<86400*7)return 'قبل '+Math.round(d/86400)+' يوم';
  return new Date(ts).toLocaleDateString('ar-SA-u-ca-gregory',{year:'numeric',month:'short',day:'numeric'});}
 const isAdmin=()=>ME&&ME.role==='admin';
+const wivesOf=id=>MAR.filter(m=>m.husband_id===id).sort((a,b)=>a.wife_order-b.wife_order||a.id-b.id);
+const marById=id=>MAR.find(m=>m.id===id);
+const wifeName=m=>m?(m.wife_name||(by[m.wife_person_id]?by[m.wife_person_id].n:'زوجة')):'';
+const wifeFull=m=>m?wifeName(m)+(m.wife_family?' '+m.wife_family:''):'';
+const ORD=['الأولى','الثانية','الثالثة','الرابعة','الخامسة','السادسة'];
+const ordName=n=>ORD[n-1]||('رقم '+n);
+const WST={married:'على ذمته',divorced:'مطلّقة',deceased:'متوفاة'};
 const curSup=()=>ME&&ME.role==='supervisor'?ME:null;
 const scopesOf=s=>s?((s.scopes&&s.scopes.length)?s.scopes:(s.scope_root?[s.scope_root]:[])).filter(r=>by[r]):[];
 const inScope=id=>{const s=curSup();if(!s)return true;const a=anc(id);return scopesOf(s).some(r=>a.includes(r));};
@@ -89,15 +97,17 @@ async function loadAll(){
   isAdmin()?SB.from('staff_scopes').select('*').order('created_at'):Promise.resolve({data:[]}),
   SB.from('events').select('*').order('starts_at',{ascending:false}),
   SB.from('albums').select('*'),
-  SB.from('photos').select('*').order('created_at')
+  SB.from('photos').select('*').order('created_at'),
+  SB.from('marriages').select('*').order('husband_id').order('wife_order').order('id')
  ];
- const [pp,tr,rq,lg,st,sf,scp,ev,al,ph]=await Promise.all(q);
+ const [pp,tr,rq,lg,st,sf,scp,ev,al,ph,mr]=await Promise.all(q);
  for(const r of [pp,tr,rq,lg,st,sf,scp,ev,al,ph]) if(r.error) throw r.error;
+ MAR=mr.error?[]:(mr.data||[]);
  EVS=ev.data||[];ALB=al.data||[];PH={};(ph.data||[]).forEach(p=>(PH[p.album_id]=PH[p.album_id]||[]).push(p));
  P=[];by={};
  const det={};(pp.data||[]).forEach(r=>det[r.id]=r);
  const base=new Map();(tr.data||[]).forEach(r=>base.set(r.id,r));(pp.data||[]).forEach(r=>base.set(r.id,r));
- base.forEach((t,id)=>{const r=det[id]||t;const x={id,n:r.first_name,p:r.father_id||0,b:r.birth_year,d:r.death_year,dead:!!r.is_dead||r.death_year!=null,g:String(r.gender||'m').trim(),vis:r.visibility||'public',ph:r.phone||'',nt:r.notes||'',by:r.created_by_name||'',at:r.created_at||null,photo:r.photo_path||t.photo_path||null,kids:[]};P.push(x);by[x.id]=x;});
+ base.forEach((t,id)=>{const r=det[id]||t;const x={id,n:r.first_name,p:r.father_id||0,b:r.birth_year,d:r.death_year,dead:!!r.is_dead||r.death_year!=null,g:String(r.gender||'m').trim(),vis:r.visibility||'public',ph:r.phone||'',nt:r.notes||'',by:r.created_by_name||'',at:r.created_at||null,photo:r.photo_path||t.photo_path||null,mom:r.mother_marriage_id||null,kids:[]};P.push(x);by[x.id]=x;});
  P.forEach(x=>{if(x.p&&by[x.p])by[x.p].kids.push(x.id);});
  // siblings: entry order, and those with a known birth year are arranged oldest-first among themselves
 // (a sibling without a year keeps his place instead of being pushed to the end)
@@ -185,7 +195,7 @@ function vMembers(){
     <select class="sel" id="fs" aria-label="الحالة"><option value="all">الكل</option><option value="alive" ${S.status==='alive'?'selected':''}>الأحياء</option><option value="dead" ${S.status==='dead'?'selected':''}>المتوفون</option></select>
    </div>
    <div class="tw"><table><thead><tr><th>الفرد</th><th>الفرع</th><th>الجيل</th><th>الميلاد</th><th>الحالة</th><th>الأبناء</th><th>أُضيف بواسطة</th><th></th></tr></thead><tbody>
-   ${shown.map(x=>`<tr class="${x.id===S.fresh?'new':''}"><td><div class="who">${avatar(x.id)}<span><b>${esc(x.n)}${x.g==='f'?' <span class="badge b-mute" style="height:20px;font-size:11px">أنثى</span>':''}${x.vis==='staff'?' <span class="badge b-gold" style="height:20px;font-size:11px">مخفي</span>':''}</b><span class="sub">${esc(fullName(x.id).split(' بن ').slice(1,4).join(' بن ')||'الجد المؤسس')}</span></span></div></td>
+   ${shown.map(x=>`<tr class="${x.id===S.fresh?'new':''}"><td><div class="who">${avatar(x.id)}<span><b>${esc(x.n)}${x.g==='f'?' <span class="badge b-mute" style="height:20px;font-size:11px">أنثى</span>':''}${x.vis==='staff'?' <span class="badge b-gold" style="height:20px;font-size:11px">مخفي</span>':''}</b><span class="sub">${esc(fullName(x.id).split(' بن ').slice(1,4).join(' بن ')||'الجد المؤسس')}${x.mom&&marById(x.mom)?' · أمه: '+esc(wifeFull(marById(x.mom))):''}${x.g!=='f'&&wivesOf(x.id).length?' · '+wivesOf(x.id).length+(wivesOf(x.id).length===1?' زوجة':' زوجات'):''}</span></span></div></td>
     <td><span style="display:inline-flex;align-items:center;gap:7px"><i class="dot" style="background:${colorOf(x.id)}"></i>${x.id===founder.id?'—':esc(by[branchOf(x.id)].n)}</span></td>
     <td>${gen(x.id)}</td><td>${x.b||'—'}</td>
     <td>${x.dead?`<span class="badge b-mute">${x.g==='f'?'توفيت':'توفي'}${x.d?' '+x.d:''}</span>`:'<span class="badge b-ok">حي</span>'}</td>
@@ -239,7 +249,7 @@ function logRows(list){
 function vLog(){return `<div class="ph"><div><h1>سجل التعديلات</h1><p>كل إضافة أو تعديل أو اعتماد يُسجَّل تلقائيًا باسم من قام به، ولا يمكن حذفه</p></div></div>${scopeBar()}<section class="card"><div class="list">${logRows(LOG)}</div></section>`;}
 
 function vSettings(){
- const rows=[['show_women','إظهار أسماء البنات في الشجرة العامة','عند الإيقاف تظهر للمشرفين والمدير فقط'],['show_births','إظهار سنوات الميلاد والوفاة','في الموقع العام'],['supervisors_direct_default','السماح للمشرفين الجدد بالنشر المباشر','ينطبق على المشرفين الذين تعيّنهم لاحقًا']];
+ const rows=[['show_women','إظهار أسماء البنات في الشجرة العامة','عند الإيقاف تظهر للمشرفين والمدير فقط'],['show_births','إظهار سنوات الميلاد والوفاة','في الموقع العام'],['show_wives','إظهار أسماء الزوجات (الأمهات) في الموقع العام','عند الإيقاف تظهر للمشرفين والمدير فقط، ولا يظهر للزوار أي شيء عن الأمهات'],['supervisors_direct_default','السماح للمشرفين الجدد بالنشر المباشر','ينطبق على المشرفين الذين تعيّنهم لاحقًا']];
  return `<div class="ph"><div><h1>الخصوصية والإعدادات</h1><p>تحكم في من يرى ماذا</p></div></div>
  <section class="card" style="max-width:760px"><div class="list">${rows.map(([k,t,h])=>`<div class="li"><div class="tx"><b>${t}</b><div class="sub">${h}</div></div><button type="button" class="sw" role="switch" aria-checked="${!!SET[k]}" aria-label="${t}" data-set="${k}"></button></div>`).join('')}</div></section>
  <section class="card" style="max-width:760px;margin-top:18px"><div class="ch"><h2>اسم العائلة</h2></div><div class="db" style="padding:18px"><div class="f"><label for="famIn">اسم العائلة كما يظهر في الموقع</label><input class="inp" id="famIn" maxlength="60" value="${esc(SET.family_name||'')}" placeholder="مثال: آل فلان"></div><div><button class="btn p" type="button" data-act="saveFam">حفظ</button></div></div></section>
@@ -265,11 +275,13 @@ const drawer=document.getElementById('drawer'),scrim=document.getElementById('sc
 let D=null;
 function openDrawer(mode,opts={}){
  D={mode,g:'m',status:'alive',vis:'public',father:opts.father||null,edit:opts.id||null,busy:false,delArm:false};
- if(mode==='edit'){const x=by[opts.id];D.g=x.g;D.status=x.dead?'dead':'alive';D.vis=x.vis||'public';}
+ if(mode==='edit'){const x=by[opts.id];D.g=x.g;D.status=x.dead?'dead':'alive';D.vis=x.vis||'public';D.mom=x.mom?String(x.mom):'';}
+ else D.mom=defaultMom(D.father);
  if(mode==='add'&&!founder)D.founder=true;
  drawHTML(); drawer.classList.add('on'); scrim.classList.add('on');
  setTimeout(()=>{const f=drawer.querySelector('input');f&&f.focus();},250);
 }
+function defaultMom(f){const w=f?wivesOf(f):[];return w.length===1?String(w[0].id):'';}
 function closeDrawer(){drawer.classList.remove('on');scrim.classList.remove('on');D=null;}
 function drawHTML(){
  const s=curSup(); const x=D.edit?by[D.edit]:null;
@@ -288,6 +300,7 @@ function drawHTML(){
    ${D.father?`<div class="chosen">${avatar(D.father,30)}<span>${esc(short(D.father,4))}<small>الجيل ${gen(D.father)} · ${by[D.father].kids.length} أبناء حاليًا</small></span><button class="btn sm" type="button" data-act="clearFather">تغيير</button></div>`:
    `<div class="pick"><input class="inp" id="fq" type="search" autocomplete="off" placeholder="اكتب اسم الأب ونسبه، مثل: سعد بن فهد" aria-label="ابحث عن الأب"><div class="opts" id="fo"></div></div><span class="h">${s?'تظهر لك أسماء فرعك فقط':'ابحث في كل العائلة'}</span>`}
    <span class="err" id="eF">اختر الأب من القائمة</span></div>`}
+  ${momPicker(x?x.p:D.father)}
   <div class="row2">
    <div class="f"><label for="nm">الاسم الأول</label><input class="inp" id="nm" maxlength="40" value="${x?esc(x.n):''}" placeholder="مثال: عبدالله"><span class="err" id="eN">اكتب الاسم</span></div>
    <div class="f"><span class="lb">الجنس</span><div class="segm" data-seg="g"><button type="button" class="${D.g==='m'?'on':''}" data-v="m">ذكر</button><button type="button" class="${D.g==='f'?'on':''}" data-v="f">أنثى</button></div></div>
@@ -300,6 +313,7 @@ function drawHTML(){
   <div class="f"><label for="ph">رقم الجوال <span class="sub">(اختياري، لا يظهر في الموقع)</span></label><input class="inp" id="ph" inputmode="tel" maxlength="20" value="${x?esc(x.ph):''}" placeholder="05XXXXXXXX"></div>
   <div class="f"><span class="lb">من يرى هذا الفرد</span><div class="segm" data-seg="vis"><button type="button" class="${D.vis==='public'?'on':''}" data-v="public">الجميع</button><button type="button" class="${D.vis==='staff'?'on':''}" data-v="staff">المشرفون فقط</button></div>${D.vis==='staff'?'<span class="h">لن يظهر هو ولا ذريته في الموقع العام.</span>':D.g==='f'&&!SET.show_women?'<span class="h">أسماء البنات مخفية حاليًا عن الموقع العام من إعدادات الخصوصية.</span>':''}</div>
   <div class="f"><label for="nt">ملاحظة داخلية <span class="sub">(اختياري)</span></label><textarea class="inp" id="nt" maxlength="1000" placeholder="مصدر المعلومة، أو أي توضيح">${x?esc(x.nt):''}</textarea></div>
+  ${x&&x.g!=='f'?wivesSummary(x.id):''}
   <div class="preview" id="pv"></div>
   ${!direct&&!x?`<div class="note" style="background:var(--goldbg);color:#5E4716">${ic('info',18,'#8A6A26')}<span>بما أن صلاحية النشر المباشر غير مفعّلة لك، سيُرسل هذا الطلب للمدير العام للاعتماد ويظهر في الشجرة بعدها.</span></div>`:''}
  </form>
@@ -308,6 +322,17 @@ function drawHTML(){
  bindDrawer(); preview();
  const pf=document.getElementById('pfile');
  if(pf)pf.onchange=()=>{const f=pf.files&&pf.files[0];if(!f)return;const keep=collect();if(D.pprev)URL.revokeObjectURL(D.pprev);D.pf=f;D.pprev=URL.createObjectURL(f);D.premove=false;drawHTML();restore(keep);};
+}
+function momPicker(f){
+ if(!f||!by[f])return '';const w=wivesOf(f);
+ if(!w.length)return can('edit')&&inScope(f)?`<div class="f"><span class="lb">الأم</span><div class="sub">لم تُسجَّل زوجات لـ ${esc(by[f].n)} بعد. <button class="lnk" type="button" data-wives="${f}" style="margin:0;display:inline">أضف زوجاته</button></div></div>`:'';
+ return `<div class="f"><span class="lb">الأم</span><div class="segm wrap" data-seg="mom">${w.map(m=>`<button type="button" class="${D.mom===String(m.id)?'on':''}" data-v="${m.id}">${esc(wifeName(m))}<small>الزوجة ${ordName(m.wife_order)}</small></button>`).join('')}<button type="button" class="${!D.mom?'on':''}" data-v="">غير محدد</button></div>
+  ${can('edit')&&inScope(f)?`<button class="lnk" type="button" data-wives="${f}" style="margin:0;text-align:right">إدارة زوجات ${esc(by[f].n)}</button>`:''}</div>`;
+}
+function wivesSummary(id){
+ const w=wivesOf(id);
+ return `<div class="f"><span class="lb">الزوجات</span>${w.length?`<div class="list" style="border:1px solid var(--line);border-radius:12px">${w.map(m=>`<div class="li" style="padding:10px 12px"><span class="ic" style="background:var(--goldbg);width:30px;height:30px;font-size:12px;font-weight:700;color:#6B4F14">${m.wife_order}</span><div class="tx"><b>${esc(wifeFull(m))}</b><div class="sub">الزوجة ${ordName(m.wife_order)} · ${WST[m.status]||''} · ${P.filter(c=>c.mom===m.id).length} أبناء</div></div></div>`).join('')}</div>`:'<div class="sub">لا توجد زوجات مسجّلة.</div>'}
+  ${can('edit')?`<button class="btn sm" type="button" data-wives="${id}" style="align-self:flex-start">${ic('users',15)}${w.length?'إدارة الزوجات':'إضافة زوجة'}</button>`:''}</div>`;
 }
 function preview(){const pv=document.getElementById('pv');if(!pv||!D)return;const n=((document.getElementById('nm')||{}).value||'').trim();const f=D.edit?by[D.edit].p:D.father;
  if(D.founder){pv.innerHTML=`سيظهر في أعلى الشجرة باسم:<br><b>${esc(n||'…')}</b> · الجد المؤسس`;return;}
@@ -336,6 +361,7 @@ async function saveMember(){
  if(D.status==='dead')show('eD',Number.isNaN(dyr)||(dyr!=null&&(dyr<1600||dyr>YEAR||(yr&&dyr<yr))));
  if(!ok)return;
  const row={first_name:nm,gender:D.g,birth_year:yr,death_year:D.status==='dead'?dyr:null,is_dead:D.status==='dead',visibility:D.vis,phone:(v.ph||'').trim()||null,notes:(v.nt||'').trim()||null};
+ const momOk=D.mom&&marById(+D.mom)&&marById(+D.mom).husband_id===fth; if(fth&&wivesOf(fth).length)row.mother_marriage_id=momOk?+D.mom:null;
  D.busy=true;drawHTML();restore(v);
  const oldPhoto=D.edit?by[D.edit].photo:null;let newPhoto=null;
  try{
@@ -354,7 +380,7 @@ async function saveMember(){
    S.fresh=data.id;S.view='members';S.q='';closeDrawer();await refresh();
    toast(wasFounder?`تمت إضافة ${nm} جدًّا مؤسسًا للشجرة`:`تمت إضافة ${nm} ${row.gender==='f'?'بنت':'بن'} ${by[fth]?by[fth].n:''} للشجرة`);return;
   }
-  const {error}=await SB.from('requests').insert({kind:'add',father_id:fth,payload:{name:nm,gender:D.g,birth_year:yr,death_year:row.death_year,note:row.notes,photo_path:newPhoto||undefined},submitter_name:myName(),source:'supervisor',submitted_by_email:ME.email,status:'pending'});if(error)throw error;
+  const {error}=await SB.from('requests').insert({kind:'add',father_id:fth,payload:{name:nm,gender:D.g,birth_year:yr,death_year:row.death_year,note:row.notes,photo_path:newPhoto||undefined,mother_marriage_id:row.mother_marriage_id||undefined},submitter_name:myName(),source:'supervisor',submitted_by_email:ME.email,status:'pending'});if(error)throw error;
   S.view='requests';S.rqTab='all';closeDrawer();await refresh();toast('أُرسل الطلب للمدير العام للاعتماد');
  }catch(e){if(newPhoto)SB.storage.from('photos').remove([newPhoto]).catch(()=>{});if(D){D.busy=false;drawHTML();restore(v);}toast(errMsg(e),true);}
 }
@@ -422,6 +448,66 @@ async function saveSup(){
   closeDrawer();S.view='sups';await refresh();toast(`تم تعيين ${name}. أرسل له رابط لوحة التحكم ليُنشئ حسابه بنفس البريد`);}
  catch(err){if(D){D.busy=false;drawSup();}toast(/duplicate key|staff_email_key/.test(err.message||'')?'هذا البريد مسجّل لمشرف آخر':errMsg(err),true);}
 }
+
+/* ================= wives ================= */
+function openWives(hid,back){const prev=D&&D.mode!=='wives'?D:null;D={mode:'wives',hus:hid,w:null,st:'married',busy:false,arm:null,back:back||prev};drawWives();drawer.classList.add('on');scrim.classList.add('on');}
+function drawWives(){
+ const h=by[D.hus],w=wivesOf(D.hus),cur=D.w?marById(D.w):null;
+ drawer.innerHTML=`<div class="dh"><div><h3 id="dTitle">زوجات ${esc(h.n)}</h3><div class="sub" style="margin-top:4px">${esc(short(h.id,4))}</div></div><button class="x" type="button" data-act="close" aria-label="إغلاق">${ic('x')}</button></div>
+ <div class="db">
+  ${w.length?`<div class="list" style="border:1px solid var(--line);border-radius:14px">${w.map((m,i)=>{const kids=P.filter(c=>c.mom===m.id);return `<div class="li" style="padding:12px;align-items:flex-start;flex-wrap:wrap">
+   <span class="ic" style="background:var(--goldbg);width:34px;height:34px;font-weight:700;color:#6B4F14">${m.wife_order}</span>
+   <div class="tx"><b>${esc(wifeFull(m))}</b><div class="sub">الزوجة ${ordName(m.wife_order)} · ${WST[m.status]||''}</div>
+    <div class="sub">${kids.length?'أبناؤها: '+kids.map(c=>esc(c.n)).join('، '):'لا أبناء مرتبطين بها بعد'}</div></div>
+   <span style="display:flex;gap:6px">${i>0?`<button class="btn sm" type="button" data-wup="${m.id}" title="تقديمها في الترتيب" aria-label="تقديم">↑</button>`:''}<button class="btn sm" type="button" data-wedit="${m.id}">${ic('edit',15)}تعديل</button></span></div>`;}).join('')}</div>`:'<div class="note" style="background:var(--soft)">لا توجد زوجات مسجّلة بعد. أضف الزوجة الأولى، وإذا كان له أكثر من زوجة أضفهن بالترتيب.</div>'}
+  <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px;background:var(--bg)">
+   <b>${cur?'تعديل بيانات '+esc(wifeName(cur)):'إضافة زوجة'+(w.length?' ('+ordName(w.length+1)+')':'')}</b>
+   <div class="row2"><div class="f"><label for="wn">اسمها</label><input class="inp" id="wn" maxlength="80" value="${esc(cur?cur.wife_name||'':'')}" placeholder="مثال: نورة بنت عبدالله"><span class="err" id="eW">اكتب اسمها</span></div>
+   <div class="f"><label for="wf">عائلتها <span class="sub">(اختياري)</span></label><input class="inp" id="wf" maxlength="60" value="${esc(cur?cur.wife_family||'':'')}" placeholder="مثال: آل فلان"></div></div>
+   <div class="f"><span class="lb">الحالة</span><div class="segm" data-wst>${Object.entries(WST).map(([k,t])=>`<button type="button" class="${D.st===k?'on':''}" data-v="${k}">${t}</button>`).join('')}</div></div>
+   <div class="f"><label for="wnt">ملاحظة داخلية <span class="sub">(اختياري)</span></label><input class="inp" id="wnt" maxlength="500" value="${esc(cur?cur.notes||'':'')}"></div>
+   ${!SET.show_wives?`<span class="h">${ic('lock',13)} أسماء الزوجات لا تظهر في الموقع العام حاليًا (من الخصوصية والإعدادات).</span>`:''}
+   <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn p" type="button" data-act="saveWife" ${D.busy?'disabled':''}>${D.busy?'جارٍ الحفظ…':cur?'حفظ':'إضافة'}</button>${cur?`<button class="btn" type="button" data-act="newWife">إلغاء التعديل</button><button class="btn no" type="button" data-act="delWife" style="margin-inline-start:auto">${ic('trash',15)}${D.arm===cur.id?'اضغط للتأكيد':'حذف'}</button>`:''}</div>
+   ${cur&&P.some(c=>c.mom===cur.id)?'<span class="h">عند الحذف يبقى أبناؤها في الشجرة لكن بدون أم محددة.</span>':''}
+  </div>
+ </div>
+ <div class="df">${D.back?`<button class="btn" type="button" data-act="wivesBack">رجوع</button>`:''}<button class="btn" type="button" data-act="close">إغلاق</button></div>`;
+ drawer.querySelector('[data-wst]').onclick=e=>{const b=e.target.closest('button');if(!b)return;const k={wn:document.getElementById('wn').value,wf:document.getElementById('wf').value,wnt:document.getElementById('wnt').value};D.st=b.dataset.v;drawWives();Object.entries(k).forEach(([i,v])=>document.getElementById(i).value=v);};
+}
+async function saveWife(){
+ const n=document.getElementById('wn').value.trim(),f=document.getElementById('wf').value.trim(),nt=document.getElementById('wnt').value.trim();
+ document.getElementById('eW').classList.toggle('on',!n);if(!n||D.busy)return;
+ const row={wife_name:n,wife_family:f||null,status:D.st,notes:nt||null};
+ D.busy=true;const hid=D.hus;
+ try{
+  let r;if(D.w)r=await SB.from('marriages').update(row).eq('id',D.w);
+  else{const w=wivesOf(hid);r=await SB.from('marriages').insert({...row,husband_id:hid,wife_order:(w.length?Math.max(...w.map(m=>m.wife_order)):0)+1,created_by_name:myName()});}
+  if(r.error)throw r.error;
+  const was=D.w;await loadAll();D.busy=false;D.w=null;D.st='married';D.arm=null;drawWives();render();toast(was?'تم حفظ بيانات الزوجة':'أُضيفت الزوجة');
+ }catch(e){D.busy=false;drawWives();toast(errMsg(e),true);}
+}
+async function delWife(){
+ const m=marById(D.w);if(!m)return;if(D.arm!==m.id){D.arm=m.id;drawWives();return;}
+ const {error}=await SB.from('marriages').delete().eq('id',m.id);if(error){toast(errMsg(error),true);return;}
+ await loadAll();D.w=null;D.arm=null;drawWives();render();toast('حُذفت الزوجة');
+}
+async function wifeUp(id){
+ const w=wivesOf(D.hus),i=w.findIndex(m=>m.id===id);if(i<1)return;const a=w[i-1],b=w[i];
+ const r1=await SB.from('marriages').update({wife_order:b.wife_order}).eq('id',a.id);const r2=await SB.from('marriages').update({wife_order:a.wife_order}).eq('id',b.id);
+ if(r1.error||r2.error){toast(errMsg(r1.error||r2.error),true);}
+ await loadAll();drawWives();render();
+}
+document.addEventListener('click',e=>{
+ if(!ME)return;const t=e.target.closest('[data-wives],[data-wedit],[data-wup],[data-act="saveWife"],[data-act="delWife"],[data-act="newWife"],[data-act="wivesBack"]');if(!t)return;
+ const d=t.dataset;
+ if(d.wives){const keep=D&&D.mode!=='wives'&&typeof collect==='function'?collect():null;openWives(+d.wives);if(D.back)D.back.keep=keep;return;}
+ if(d.wedit){const m=marById(+d.wedit);D.w=m.id;D.st=m.status;D.arm=null;drawWives();document.getElementById('wn').focus();return;}
+ if(d.wup){wifeUp(+d.wup);return;}
+ if(d.act==='saveWife'){saveWife();return;}
+ if(d.act==='delWife'){delWife();return;}
+ if(d.act==='newWife'){D.w=null;D.st='married';D.arm=null;drawWives();return;}
+ if(d.act==='wivesBack'){const b=D.back;D=b;if(D.mode==='edit'||D.mode==='add'){if(D.father&&!wivesOf(D.father).some(m=>String(m.id)===D.mom))D.mom=defaultMom(D.father);drawHTML();if(b.keep)restore(b.keep);}return;}
+});
 
 /* ================= events & photos ================= */
 const KIND={wedding:'زواج',gathering:'جمعة عائلية',meeting:'لقاء',other:'مناسبة'};
@@ -782,7 +868,7 @@ document.addEventListener('click',async e=>{
  if(d.cover){const {data,error}=await SB.from('albums').update({cover_photo_id:+d.cover}).eq('id',S.album).select('id').maybeSingle();if(error||!data){toast(error?errMsg(error):'ليست لديك صلاحية لهذا الإجراء',true);return;}await refresh();toast('تم تعيين غلاف الألبوم');return;}
  if(d.cap){D={mode:'cap',photo:+d.cap};drawCaption();drawer.classList.add('on');scrim.classList.add('on');setTimeout(()=>{const c=document.getElementById('cpT');c&&c.focus();},250);return;}
  if(d.delph){deletePhoto(+d.delph,t);return;}
- if(d.father){const keep=collect();D.father=+d.father;drawHTML();restore(keep);return;}
+ if(d.father){const keep=collect();D.father=+d.father;D.mom=defaultMom(D.father);drawHTML();restore(keep);return;}
  if(d.sc){D.scs=[...(D.scs||[]),+d.sc].filter((v,i,a)=>a.indexOf(v)===i);if(D.mode==='scope')D.scs=[+d.sc];redrawScopes();return;}
  if(d.unsc){D.scs=(D.scs||[]).filter(r=>r!==+d.unsc);redrawScopes();return;}
  if(d.addscope){D={mode:'scope',sid:+d.addscope,scs:[]};drawAddScope();drawer.classList.add('on');scrim.classList.add('on');return;}
@@ -815,7 +901,7 @@ document.addEventListener('click',async e=>{
  if(a==='save'){saveMember();return;}
  if(a==='del'){deleteMember();return;}
  if(a==='saveSup'){saveSup();return;}
- if(a==='clearFather'){const keep=collect();D.father=null;drawHTML();restore(keep);return;}
+ if(a==='clearFather'){const keep=collect();D.father=null;D.mom='';drawHTML();restore(keep);return;}
  if(a==='saveScope'){if(!(D.scs&&D.scs.length)){document.getElementById('eC').classList.add('on');return;}
   D.busy=true;drawAddScope();const {error}=await SB.from('staff_scopes').insert({staff_id:D.sid,root_id:D.scs[0]});
   if(error){D.busy=false;drawAddScope();toast(/duplicate|pkey/.test(error.message||'')?'هذا الفرع مضاف له مسبقًا':errMsg(error),true);return;}
