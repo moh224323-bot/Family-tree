@@ -116,6 +116,9 @@ button{font:inherit;color:inherit}
 .nums span{font-size:12px;color:var(--muted)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{min-height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--line2);background:var(--bg2);cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px}
+.bio{font-size:15px;line-height:1.95;white-space:pre-line;color:var(--text)}
+.bio.clip{max-height:11.7em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 65%,transparent);mask-image:linear-gradient(#000 65%,transparent)}
+#bioMore{margin:4px 0 0;padding:6px 0;border:0;background:none;color:var(--gold);cursor:pointer;font:inherit;font-size:14px;font-weight:600}
 .moms{display:flex;flex-direction:column;gap:10px}
 .mom{border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--bg2)}
 .momh{display:flex;align-items:center;gap:10px}
@@ -592,6 +595,19 @@ function sibsBlock(x,sibs){
   const ch=l=>l.map(c=>`<button type="button" class="chip" data-sel="${c}">${esc(by[c].n)}</button>`).join('');
   return (full.length?`<div><div class="k">الأشقّاء</div><div class="chips">${ch(full)}</div></div>`:'')+(half.length?`<div><div class="k">الإخوة من الأب</div><div class="chips">${ch(half)}</div></div>`:'')+(unk.length?`<div><div class="k">${full.length||half.length?'إخوة آخرون':'الإخوة'}</div><div class="chips">${ch(unk)}</div></div>`:'');
 }
+/* ---------- biography (loaded on demand) ---------- */
+const BIO={};
+async function loadBio(id){
+  const box=document.getElementById('bioBox');if(!box)return;
+  if(!(id in BIO)){try{const r=await SB.rpc('get_person_bio',{p_id:id});BIO[id]=r.error?'':(r.data||'');}catch(_){BIO[id]='';}}
+  if(st.sel!==id)return;const t=BIO[id].trim();
+  if(!t){box.hidden=true;return;}
+  const long=t.length>420;
+  box.hidden=false;
+  box.innerHTML=`<div class="k">السيرة الذاتية</div><div class="bio ${long?'clip':''}" id="bioT">${esc(t)}</div>${long?'<button type="button" class="lnk" id="bioMore">اقرأ المزيد</button>':''}`;
+  const m=document.getElementById('bioMore');
+  if(m)m.onclick=()=>{const b=document.getElementById('bioT');const open=b.classList.toggle('clip');m.textContent=open?'اقرأ المزيد':'عرض أقل';};
+}
 function renderPerson(){
   const x=by[st.sel]; const f=by[x.p]; const a=anc(x.id);
   const grand=x.kids.reduce((n,c)=>n+by[c].kids.length,0);
@@ -604,11 +620,13 @@ function renderPerson(){
      <div><div class="k">النسب الكامل</div><div class="lineage">${lin}</div></div>
      <div class="nums"><div><b>${x.kids.length}</b><span>الأبناء</span></div><div><b>${grand}</b><span>الأحفاد</span></div><div><b>${desc(x.id)}</b><span>الذرية</span></div><div><b>${sibs.length}</b><span>الإخوة</span></div></div>
      ${f?`<div><div class="k">الأب</div><div class="chips"><button type="button" class="chip" data-sel="${f.id}">${esc(short(f.id))}</button></div></div>`:''}
+     <div id="bioBox" hidden></div>
      ${momOf(x.id)?`<div><div class="k">الأم</div><div class="chips">${momOf(x.id).wife_person_id&&by[momOf(x.id).wife_person_id]?`<button type="button" class="chip" data-sel="${momOf(x.id).wife_person_id}">${wifeT(momOf(x.id))}</button>`:`<span class="chip" style="cursor:default">${wifeT(momOf(x.id))}</span>`}</div></div>`:''}
      ${kidsBlock(x)}
      ${sibsBlock(x,sibs)}
      <div class="acts"><button type="button" class="btn g" id="showIn">اعرضه في الشجرة</button><button type="button" class="btn" id="cmpWith">قارن معه</button></div>
     </div>`;
+  if(!x.virtual)loadBio(x.id);
 }
 
 /* ---------- kinship ---------- */
