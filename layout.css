@@ -1,0 +1,158 @@
+/* شجرتنا — shared site chrome: header, Quran verses banner, footer, mobile tab bar.
+   Loaded by index.html, events.html and memories.html. All rules are scoped to
+   .hdr / .ayah / .ftr / .tabbar so they don't collide with page styles. */
+:root{--hh:72px;--olive3:#2A3318;--gold2:#C9A75E;--gold3:#E8D3A0;--cream:#F7EFD9}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+[id]{scroll-margin-top:calc(var(--hh) + 14px)}
+
+/* ================= header ================= */
+.hdr{position:sticky;top:0;z-index:40;background:rgba(255,253,248,.86);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border-bottom:1px solid #E6DCC3;transition:box-shadow .25s,background .25s}
+.hdr.scrolled{box-shadow:0 8px 30px rgba(43,42,36,.08);background:rgba(255,253,248,.96)}
+.hdr::after{content:"";position:absolute;inset-inline:0;bottom:-1px;height:2px;background:linear-gradient(90deg,transparent,var(--gold2) 30%,#4F5D2F 50%,var(--gold2) 70%,transparent);opacity:.55;pointer-events:none}
+.hdr .in{max-width:1400px;margin:0 auto;height:var(--hh);padding:0 22px;display:flex;align-items:center;gap:20px}
+.hdr a{text-decoration:none;color:inherit}
+.logo{display:flex;align-items:center;gap:12px;flex:none;min-width:0;text-decoration:none;color:inherit}
+.logo .em{width:46px;height:46px;flex:none;border-radius:14px;background:linear-gradient(145deg,#4F5D2F,var(--olive3));display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px rgba(232,211,160,.35),0 6px 16px rgba(62,74,36,.25)}
+.logo .tx{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.logo b{font-family:'Reem Kufi',serif;font-size:21px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logo small{font-size:12px;color:#736D5F;margin-top:3px;white-space:nowrap}
+.hdr .nav{display:flex;align-items:stretch;gap:2px;margin-inline-start:8px;align-self:stretch}
+.hdr .nav a{position:relative;display:flex;align-items:center;gap:8px;padding:0 15px;color:#6B6557;font-size:15px;font-weight:500;white-space:nowrap}
+.hdr .nav a svg{opacity:.75}
+.hdr .nav a:hover{color:#2B2A24}
+.hdr .nav a.on{color:#3E4A24;font-weight:600}
+.hdr .nav a.on svg{opacity:1}
+.hdr .nav a.on::after{content:"";position:absolute;inset-inline:13px;bottom:0;height:3px;border-radius:3px 3px 0 0;background:#4F5D2F}
+.hdr .sp{flex:1}
+.hdr .today{display:flex;flex-direction:column;align-items:flex-end;line-height:1.4;font-size:12px;color:#736D5F;padding-inline-end:16px;border-inline-end:1px solid #E2D6B8;white-space:nowrap}
+.hdr .today b{font-size:13px;color:#2B2A24;font-weight:600}
+.hdr .hsearch{display:flex;align-items:center;gap:10px;height:44px;padding:0 12px;border-radius:12px;border:1px solid #E2D6B8;background:#FFFDF8;color:#6B6557;cursor:pointer;min-width:230px;font-size:14.5px}
+.hdr .hsearch:hover{border-color:#4F5D2F}
+.hdr .hsearch kbd{margin-inline-start:auto;font-family:inherit;font-size:12px;padding:2px 7px;border-radius:6px;border:1px solid #E2D6B8;color:#736D5F}
+.hdr .hcta{height:44px;padding:0 18px;border-radius:12px;border:0;background:#4F5D2F;color:#fff;font-weight:600;font-size:14.5px;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;box-shadow:0 6px 16px rgba(79,93,47,.25)}
+.hdr .hcta:hover{background:#3E4A24}
+.hdr .msearch{display:none;width:44px;height:44px;flex:none;border-radius:12px;border:1px solid #E2D6B8;background:#FFFDF8;color:#2B2A24;align-items:center;justify-content:center;cursor:pointer}
+body.prev-admin .hdr{top:36px}
+
+/* ================= Quran verses banner ================= */
+.ayah{position:relative;overflow:hidden;background:radial-gradient(120% 140% at 50% 0%,#46552A 0%,#2E3A1B 55%,#222B13 100%);color:var(--cream);isolation:isolate}
+.ayah .pat{position:absolute;inset:-80px;opacity:.13;z-index:-1;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='none' stroke='%23E8D3A0' stroke-width='1'%3E%3Cpath d='M40 8l9.4 22.6L72 40l-22.6 9.4L40 72l-9.4-22.6L8 40l22.6-9.4z'/%3E%3Crect x='22' y='22' width='36' height='36' transform='rotate(45 40 40)'/%3E%3Crect x='22' y='22' width='36' height='36'/%3E%3Ccircle cx='40' cy='40' r='6'/%3E%3C/g%3E%3C/svg%3E");background-size:80px 80px;animation:ayDrift 60s linear infinite}
+@keyframes ayDrift{to{transform:translate(80px,80px)}}
+.ayah .glow{position:absolute;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(201,167,94,.28),transparent 65%);top:-260px;left:50%;transform:translateX(-50%);z-index:-1;animation:ayBreathe 8s ease-in-out infinite;pointer-events:none}
+@keyframes ayBreathe{50%{opacity:.55;transform:translateX(-50%) scale(1.12)}}
+.ayah .in{max-width:1100px;margin:0 auto;padding:38px 22px 28px;text-align:center;position:relative}
+.ayah .frame{position:relative;padding:30px 64px 24px;border:1px solid rgba(232,211,160,.35);border-radius:6px}
+.ayah .frame::before{content:"";position:absolute;inset:6px;border:1px solid rgba(232,211,160,.16);border-radius:3px;pointer-events:none}
+.ayah .cn{position:absolute;width:30px;height:30px;color:var(--gold2)}
+.ayah .cn.a{top:-15px;right:-15px}.ayah .cn.b{top:-15px;left:-15px}.ayah .cn.c{bottom:-15px;right:-15px}.ayah .cn.d{bottom:-15px;left:-15px}
+.ayah .sheen{position:absolute;inset:0;overflow:hidden;pointer-events:none;border-radius:6px}
+.ayah .sheen::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-50%;background:linear-gradient(100deg,transparent,rgba(232,211,160,.10),transparent);animation:aySheen 7s ease-in-out infinite}
+@keyframes aySheen{0%{left:-50%}60%,100%{left:120%}}
+.ayah .ttl{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:#33401E;padding:0 16px;display:flex;align-items:center;gap:10px;font-family:'Reem Kufi',serif;font-size:14.5px;letter-spacing:.04em;color:var(--gold3);white-space:nowrap}
+.ayah .ttl i{width:6px;height:6px;transform:rotate(45deg);background:var(--gold2);display:inline-block}
+.ayah .verse{min-height:3.8em;display:flex;align-items:center;justify-content:center;font-family:'Amiri',serif;font-size:clamp(23px,3.1vw,38px);line-height:1.9;color:#FBF4E2;text-shadow:0 2px 18px rgba(0,0,0,.25)}
+.ayah .verse .br{color:var(--gold2);font-size:1.1em;margin:0 .15em}
+.ayah .verse .w{display:inline-block;opacity:0;filter:blur(6px);transform:translateY(8px);animation:ayWord .7s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes ayWord{to{opacity:1;filter:blur(0);transform:none}}
+.ayah .verse.out{animation:ayOut .55s ease forwards}
+@keyframes ayOut{to{opacity:0;transform:translateY(-8px);filter:blur(4px)}}
+.ayah .ref{margin-top:6px;font-size:14px;color:var(--gold3);opacity:0;transition:opacity .6s .2s}
+.ayah .ref.on{opacity:.9}
+.ayah .ctl{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:22px}
+.ayah .dots{display:flex;gap:8px}
+.ayah .dot{position:relative;width:34px;height:4px;border:0;padding:0;border-radius:4px;background:rgba(232,211,160,.25);cursor:pointer}
+.ayah .dot::before{content:"";position:absolute;inset:-12px 0}
+.ayah .dot span{position:absolute;top:0;bottom:0;inset-inline-start:0;width:0;background:var(--gold2);border-radius:4px}
+.ayah .dot.done span{width:100%}
+.ayah .dot.on span{animation:ayFill var(--dur,9s) linear forwards}
+.ayah.paused .dot.on span{animation-play-state:paused}
+@keyframes ayFill{to{width:100%}}
+.ayah .pp{width:36px;height:36px;border-radius:50%;border:1px solid rgba(232,211,160,.35);background:transparent;color:var(--gold3);cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none}
+.ayah .pp:hover{background:rgba(232,211,160,.1)}
+.ayah :focus-visible{outline:2px solid var(--gold2);outline-offset:3px}
+.ayah .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* compact variant for inner pages */
+.ayah.mini .in{max-width:1400px;padding:14px 22px;display:flex;align-items:center;gap:18px;text-align:start}
+.ayah.mini .frame{flex:1;min-width:0;padding:0;border:0;display:flex;align-items:center;gap:16px}
+.ayah.mini .frame::before,.ayah.mini .cn,.ayah.mini .sheen,.ayah.mini .dots{display:none}
+.ayah.mini .ttl{position:static;transform:none;background:none;padding:0;font-size:13px;flex:none}
+.ayah.mini .verse{flex:1;min-width:0;min-height:1.9em;justify-content:center;font-size:clamp(17px,1.7vw,22px);line-height:1.9;text-align:center}
+.ayah.mini .ref{margin:0;font-size:12.5px;flex:none;white-space:nowrap}
+.ayah.mini .ctl{margin:0}
+.ayah.mini .pp{width:32px;height:32px}
+
+@media (prefers-reduced-motion:reduce){
+  .ayah .pat,.ayah .glow,.ayah .sheen::after{animation:none}
+  .ayah .verse .w{animation:none;opacity:1;filter:none;transform:none}
+  .ayah .verse.out{animation:none}
+}
+
+/* ================= footer ================= */
+.ftr{margin-top:40px;background:#232B15;color:#D9D2BF;position:relative}
+.ftr a{text-decoration:none;color:inherit}
+.ftr .band{height:14px;background:var(--olive3) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='14' viewBox='0 0 28 14'%3E%3Cpath d='M0 7l7-6 7 6 7-6 7 6M0 7l7 6 7-6 7 6 7-6' fill='none' stroke='%23C9A75E' stroke-opacity='.5' stroke-width='1'/%3E%3C/svg%3E") repeat-x center;border-bottom:1px solid rgba(201,167,94,.25)}
+.ftr .cols{max-width:1400px;margin:0 auto;padding:46px 22px 30px;display:grid;grid-template-columns:1.5fr 1fr 1fr 1.1fr;gap:36px}
+.ftr .logo b{color:#FBF4E2}
+.ftr .logo small{color:#A8A08B}
+.ftr .about{margin:16px 0 0;font-size:14.5px;line-height:1.9;color:#BDB49C;max-width:380px}
+.ftr .hadith{margin:18px 0 0;padding:14px 16px;border-inline-start:3px solid var(--gold2);background:rgba(255,255,255,.04);border-radius:8px;font-family:'Amiri',serif;font-size:17px;line-height:1.9;color:#F1E7CC;max-width:420px}
+.ftr .hadith small{display:block;font-family:'IBM Plex Sans Arabic',sans-serif;font-size:12px;color:#A8A08B;margin-top:4px}
+.ftr h4{margin:4px 0 16px;font-family:'Reem Kufi',serif;font-size:17px;font-weight:600;color:var(--gold3)}
+.ftr ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.ftr li a{display:inline-flex;align-items:center;gap:10px;min-height:38px;color:#D9D2BF;font-size:14.5px;transition:color .15s,transform .15s}
+.ftr li a:hover{color:#fff;transform:translateX(-3px)}
+.ftr li a svg{color:var(--gold2);flex:none}
+.ftr .cbox{padding:16px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(232,211,160,.15)}
+.ftr .cbox p{margin:0 0 12px;font-size:13.5px;line-height:1.8;color:#BDB49C}
+.ftr .fb{display:flex;align-items:center;justify-content:center;gap:8px;height:44px;border-radius:11px;background:var(--gold2);color:#2A2412;font-weight:600;font-size:14px}
+.ftr .fb:hover{background:#D6B66E}
+.ftr .fb.o{margin-top:8px;background:transparent;border:1px solid rgba(232,211,160,.3);color:var(--gold3)}
+.ftr .fb.o:hover{background:rgba(232,211,160,.08)}
+.ftr .bot{border-top:1px solid rgba(232,211,160,.12)}
+.ftr .bot .frow{max-width:1400px;margin:0 auto;padding:16px 22px 22px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;font-size:13px;color:#A8A08B}
+.ftr .bot .sp{flex:1}
+.ftr .totop{display:flex;align-items:center;gap:8px;height:38px;padding:0 14px;border-radius:999px;border:1px solid rgba(232,211,160,.25);color:var(--gold3);background:transparent;cursor:pointer;font-size:13px}
+.ftr .totop:hover{background:rgba(232,211,160,.08)}
+.ftr :focus-visible{outline:2px solid var(--gold2);outline-offset:2px}
+
+/* ================= mobile tab bar ================= */
+.tabbar{display:none}
+
+/* ================= responsive ================= */
+@media (max-width:1180px){.hdr .today{display:none}}
+@media (max-width:1020px){
+  .hdr .hsearch{min-width:0}
+  .hdr .hsearch span,.hdr .hsearch kbd{display:none}
+  .ftr .cols{grid-template-columns:1fr 1fr}
+  .ftr .brandcol{grid-column:1/-1}
+}
+@media (max-width:760px){
+  :root{--hh:62px}
+  .hdr .in{padding:0 14px;gap:10px}
+  .hdr .nav,.hdr .hcta,.hdr .hsearch{display:none}
+  .hdr .msearch{display:flex;margin-inline-start:auto}
+  .logo .em{width:40px;height:40px;border-radius:12px}
+  .logo b{font-size:18px}
+  .ayah .in{padding:28px 14px 20px}
+  .ayah .frame{padding:26px 16px 18px}
+  .ayah .cn{width:22px;height:22px}
+  .ayah .cn.a{top:-11px;right:-11px}.ayah .cn.b{top:-11px;left:-11px}.ayah .cn.c{bottom:-11px;right:-11px}.ayah .cn.d{bottom:-11px;left:-11px}
+  .ayah .verse{min-height:7.6em;font-size:22px}
+  .ayah.mini .in{padding:12px 14px;gap:10px}
+  .ayah.mini .frame{flex-direction:column;gap:2px}
+  .ayah.mini .ttl{display:none}
+  .ayah.mini .verse{min-height:3.8em;font-size:17px}
+  .ftr{margin-top:28px}
+  .ftr .cols{grid-template-columns:1fr;gap:28px;padding:34px 18px 22px}
+  .ftr .bot .frow{padding:14px 18px 22px}
+  body{padding-bottom:calc(68px + env(safe-area-inset-bottom))}
+  .toast{bottom:calc(84px + env(safe-area-inset-bottom))!important}
+  .tabbar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:45;background:rgba(255,253,248,.95);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid #E6DCC3;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+  .tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 0;font-size:11.5px;color:#736D5F;text-decoration:none;border-radius:12px}
+  .tabbar a.on{color:#3E4A24;font-weight:600}
+  .tabbar a.on .ti{background:#E7EBDA}
+  .tabbar .ti{width:52px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center}
+}
+@media print{.hdr,.ayah,.ftr,.tabbar{display:none}}

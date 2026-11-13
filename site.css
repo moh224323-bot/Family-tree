@@ -1,4 +1,4 @@
-/* Shared look for شجرتنا public pages (events, memories). Matches index.html. */
+/* Shared look for شجرتنا public pages (events, memories). Matches index.html. Header/banner/footer live in layout.css. */
 :root{
   --bg:#F6F1E7;--panel:#FFFDF8;--panel2:#EDE4CF;--soft:#F1EADA;--line:#E6DCC3;--line2:#E2D6B8;
   --text:#2B2A24;--muted:#6B6557;--faint:#736D5F;--olive:#4F5D2F;--olive2:#3E4A24;--olivebg:#E7EBDA;
@@ -12,24 +12,14 @@ a{color:inherit}
 ::selection{background:#4F5D2F;color:#fff}
 :focus-visible{outline:2px solid var(--olive);outline-offset:2px}
 
-/* header */
-.top{position:sticky;top:0;z-index:30;background:rgba(255,253,248,.9);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
-.top .in{max-width:1400px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:16px}
-.brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:600;color:var(--text);text-decoration:none;font-family:'Reem Kufi',serif}
-.mainnav{display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--bg);border:1px solid var(--line);margin-inline-end:auto}
-.mainnav a{min-height:36px;padding:0 14px;border-radius:9px;display:flex;align-items:center;color:var(--muted);text-decoration:none;font-size:14.5px;font-weight:500;white-space:nowrap}
-.mainnav a:hover{color:var(--text)}
-.mainnav a.on{background:var(--panel2);color:var(--text);font-weight:600;box-shadow:inset 0 0 0 1px var(--line2)}
-.tbtn{min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line2);background:var(--panel);display:inline-flex;align-items:center;gap:8px;cursor:pointer;text-decoration:none;font-weight:500;font-size:14px;white-space:nowrap}
-.tbtn:hover{border-color:var(--olive)}
 
 /* hero */
 .hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line);background:#FFFDF8}
-.hero .in{position:relative;max-width:1400px;margin:0 auto;padding:42px 22px 32px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:24px 48px}
+.hero .in{position:relative;max-width:1400px;margin:0 auto;padding:32px 22px 28px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:24px 48px}
 .hero .pat{position:absolute;inset:0;opacity:.5;pointer-events:none}
 .eyebrow{font-size:14px;letter-spacing:.02em;color:var(--gold);display:flex;align-items:center;gap:10px}
 .eyebrow::before{content:"";width:28px;height:1px;background:var(--gold)}
-.hero h1{margin:8px 0 10px;font-family:'Reem Kufi',serif;font-weight:600;font-size:clamp(38px,6.4vw,72px);line-height:1.05}
+.hero h1{margin:8px 0 10px;font-family:'Reem Kufi',serif;font-weight:600;font-size:clamp(34px,5.4vw,60px);line-height:1.05}
 .hero h1 em{font-style:normal;color:var(--olive)}
 .hero p{margin:0;max-width:540px;color:var(--muted);font-size:17px;line-height:1.7}
 .stats{display:flex;flex-wrap:wrap;margin-inline-start:auto}
@@ -71,7 +61,6 @@ a{color:inherit}
 
 .toast{position:fixed;bottom:22px;left:50%;transform:translate(-50%,10px);background:var(--text);color:#fff;padding:10px 18px;border-radius:12px;font-size:14px;font-weight:500;opacity:0;transition:.2s;pointer-events:none;z-index:80}
 .toast.on{opacity:1;transform:translate(-50%,0)}
-footer{max-width:1400px;margin:0 auto;padding:16px 22px 40px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;color:var(--faint);font-size:13px}
 
 /* maintenance */
 #mnt{position:fixed;inset:0;z-index:200;background:#F6F1E7;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}
@@ -85,15 +74,9 @@ footer{max-width:1400px;margin:0 auto;padding:16px 22px 40px;display:flex;flex-w
 #mnt small{color:#736D5F;font-size:13px}
 #adminBar{position:fixed;top:0;left:0;right:0;z-index:199;background:#A3412C;color:#fff;font-size:13.5px;font-weight:500;text-align:center;padding:8px 12px}
 body.prev-admin{padding-top:36px}
-body.prev-admin .top{top:36px}
 
 @media (max-width:640px){
-  .top .in{padding:10px 14px;gap:10px;flex-wrap:wrap}
-  .brand span{display:none}
-  .mainnav{order:5;width:100%;margin:0}
-  .mainnav a{flex:1;justify-content:center}
-  .tbtn .long{display:none}
-  .hero .in{padding:28px 16px 22px;gap:20px}
+          .hero .in{padding:28px 16px 22px;gap:20px}
   .stats{margin-inline-start:0;width:100%}
   .stat{padding:2px 14px;min-width:0;flex:1}
   .stat:first-child{padding-inline-start:0}
