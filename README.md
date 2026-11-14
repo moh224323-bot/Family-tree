@@ -6,6 +6,7 @@
 | الفعاليات (التقويم) | `events.html` |
 | الذكريات (الصور) | `memories.html` |
 | لوحة التحكم | `admin.html` + `admin.js` |
+| صفحة الدعوة وتأكيد الحضور | `invite.html?i=…` (الرد يمر عبر دالة Supabase `invite-respond`) |
 | ملف التقويم والاشتراك | `api/ics.js` → `/api/ics?id=…` و `/api/ics` |
 
 - الشكل المشترك للصفحات الجديدة: `site.css` و `common.js`

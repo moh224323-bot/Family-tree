@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>دعوة · شجرة العائلة</title>
+<meta property="og:title" content="دعوة خاصة من العائلة">
+<meta property="og:description" content="أكّد حضورك وشوف برنامج الفعالية">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Reem+Kufi:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="site.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<style>
+body{background:var(--bg)}
+.top{max-width:880px;margin:0 auto;padding:16px 20px;display:flex;align-items:center;gap:10px}
+.top a{display:flex;align-items:center;gap:10px;text-decoration:none;font-family:'Reem Kufi',serif;font-size:18px;font-weight:600;color:var(--text)}
+.top .em{width:38px;height:38px;border-radius:12px;background:var(--olive);display:flex;align-items:center;justify-content:center}
+
+/* hero */
+.inv{max-width:880px;margin:0 auto;padding:0 16px 60px}
+.hero2{position:relative;overflow:hidden;border-radius:28px;background:#3E4A24;color:#F7EFD9;padding:44px 30px 30px;text-align:center}
+.hero2 .pat{position:absolute;inset:0;opacity:.16;pointer-events:none}
+.hero2 .in{position:relative;display:flex;flex-direction:column;align-items:center;gap:14px}
+.badge2{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;border:1px solid rgba(247,239,217,.35);font-size:13px;letter-spacing:.02em}
+.hero2 h1{margin:4px 0 0;font-family:'Reem Kufi',serif;font-weight:600;font-size:clamp(34px,7vw,58px);line-height:1.15;color:#fff}
+.hero2 .fam{font-family:'Amiri',serif;font-size:20px;color:#E9D9A8}
+.when{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:rgba(247,239,217,.22);border-radius:18px;overflow:hidden;width:min(620px,100%);margin-top:10px}
+.when div{background:#46532A;padding:14px 10px;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center}
+.when small{font-size:12px;color:#CFC6A8}
+.when b{font-size:17px;font-weight:600;color:#fff;line-height:1.35}
+.when span{font-size:12.5px;color:#E9D9A8}
+.cdown{display:flex;gap:10px;justify-content:center;margin-top:6px}
+.cdown div{min-width:66px;padding:10px 8px;border-radius:14px;background:rgba(0,0,0,.18)}
+.cdown b{display:block;font-family:'Reem Kufi',serif;font-size:28px;line-height:1;color:#fff}
+.cdown span{font-size:11.5px;color:#CFC6A8}
+.hacts{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px}
+.hbtn{min-height:46px;padding:0 18px;border-radius:13px;border:1px solid rgba(247,239,217,.4);background:transparent;color:#F7EFD9;font-weight:600;font-size:14.5px;display:inline-flex;align-items:center;gap:8px;text-decoration:none;cursor:pointer}
+.hbtn:hover{background:rgba(255,255,255,.08)}
+.hbtn.p{background:#E9D9A8;border-color:#E9D9A8;color:#2B2A24}
+.hbtn.p:hover{background:#F3E6BE}
+.going{font-size:14px;color:#E9D9A8}
+
+/* sections */
+.sec{margin-top:18px;padding:28px 26px}
+.sec h2{margin:0 0 14px;font-family:'Reem Kufi',serif;font-weight:600;font-size:24px;display:flex;align-items:center;gap:10px}
+.sec h2 i{width:30px;height:2px;background:var(--gold);display:inline-block}
+.welcome{font-family:'Amiri',serif;font-size:20px;line-height:2.1;white-space:pre-line;color:var(--text)}
+.sign{margin-top:14px;font-family:'Amiri',serif;font-size:18px;color:var(--gold);text-align:left}
+.tl{list-style:none;margin:0;padding:0;position:relative}
+.tl li{position:relative;display:grid;grid-template-columns:96px 22px minmax(0,1fr);gap:12px;padding-bottom:22px}
+.tl li:last-child{padding-bottom:0}
+.tl .t{font-weight:700;color:var(--olive);font-size:15px;text-align:left;padding-top:1px;white-space:nowrap}
+.tl .dot{position:relative;display:flex;justify-content:center}
+.tl .dot::before{content:"";width:14px;height:14px;border-radius:50%;background:var(--panel);border:3px solid var(--gold);margin-top:3px;z-index:1}
+.tl li:not(:last-child) .dot::after{content:"";position:absolute;top:18px;bottom:-22px;width:2px;background:var(--line2)}
+.tl b{display:block;font-size:16.5px;font-weight:600}
+.tl p{margin:4px 0 0;color:var(--muted);font-size:14.5px;line-height:1.7;white-space:pre-line}
+.notes{white-space:pre-line;line-height:1.9;color:var(--text);font-size:15.5px}
+
+/* rsvp */
+.rsvp{margin-top:18px;padding:28px 26px;border:2px solid var(--olive);scroll-margin-top:16px}
+.rsvp h2{margin:0;font-family:'Reem Kufi',serif;font-weight:600;font-size:26px}
+.lead{margin:6px 0 18px;color:var(--muted);line-height:1.7}
+.srch{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 14px;border:1.5px solid var(--line2);border-radius:14px;background:var(--bg)}
+.srch input{flex:1;border:0;background:transparent;outline:none;font:inherit;font-size:17px;min-width:0}
+.res{display:flex;flex-direction:column;gap:6px;margin-top:10px;max-height:340px;overflow:auto}
+.pi{width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--panel);cursor:pointer;text-align:right}
+.pi:hover{border-color:var(--olive);background:var(--olivebg)}
+.pi .av{width:38px;height:38px;border-radius:50%;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-family:'Reem Kufi',serif;font-weight:600;flex:none}
+.pi span{flex:1;display:flex;flex-direction:column;line-height:1.5}
+.pi b{font-size:16px}
+.pi small{font-size:13px;color:var(--faint)}
+.pi em{font-style:normal;font-size:12px;padding:3px 9px;border-radius:999px}
+.st-yes{background:var(--olivebg);color:var(--olive2)}.st-no{background:var(--redbg);color:var(--red)}.st-maybe{background:var(--goldbg);color:#6B4F14}
+.hint{font-size:13.5px;color:var(--faint);margin-top:10px;line-height:1.7}
+.me{display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;background:var(--olivebg);margin-bottom:18px}
+.me .av{width:46px;height:46px;border-radius:50%;background:var(--olive);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Reem Kufi',serif;font-size:20px;flex:none}
+.me span{flex:1;line-height:1.5}.me b{font-size:17px}.me small{display:block;color:var(--muted);font-size:13px}
+.lnk{border:0;background:none;color:var(--olive);font:inherit;font-weight:600;cursor:pointer;font-size:14px;padding:6px}
+.choice{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.ch{min-height:86px;border-radius:16px;border:1.5px solid var(--line2);background:var(--panel);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-weight:600;font-size:15px;padding:10px}
+.ch svg{opacity:.75}
+.ch:hover{border-color:var(--olive)}
+.ch[aria-pressed=true].y{background:var(--olive);border-color:var(--olive);color:#fff}
+.ch[aria-pressed=true].n{background:var(--red);border-color:var(--red);color:#fff}
+.ch[aria-pressed=true].m{background:#B08A3E;border-color:#B08A3E;color:#fff}
+.ch[aria-pressed=true] svg{opacity:1}
+.fill{margin-top:22px;padding-top:20px;border-top:1px dashed var(--line2);display:flex;flex-direction:column;gap:16px}
+.fill h3{margin:0;font-size:17px}
+.fill .why{margin:-8px 0 0;color:var(--muted);font-size:14px;line-height:1.7}
+.f{display:flex;flex-direction:column;gap:7px}
+.f label,.f .lb{font-weight:600;font-size:14.5px}
+.f .h{font-size:12.5px;color:var(--faint)}
+.inp{min-height:50px;padding:0 14px;border:1.5px solid var(--line2);border-radius:13px;background:var(--bg);font:inherit;font-size:17px;outline:none;width:100%}
+.inp:focus{border-color:var(--olive);background:#fff}
+.ph{display:flex;align-items:center;gap:14px}
+.ph .pv{width:84px;height:84px;border-radius:50%;background:var(--panel2);overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center}
+.ph .pv img{width:100%;height:100%;object-fit:cover}
+.send{width:100%;min-height:56px;border-radius:15px;border:0;background:var(--olive);color:#fff;font-weight:700;font-size:17px;cursor:pointer;margin-top:18px}
+.send:hover{background:var(--olive2)}
+.send:disabled{opacity:.6;cursor:wait}
+.err{color:var(--red);font-size:14px;margin-top:10px;min-height:1em}
+.done{text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;padding:10px 0}
+.done .ok{width:74px;height:74px;border-radius:50%;background:var(--olivebg);display:flex;align-items:center;justify-content:center}
+.done h2{font-size:28px}
+.done p{margin:0;color:var(--muted);line-height:1.8;max-width:460px}
+.dacts{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:6px}
+.closed{padding:16px;border-radius:14px;background:var(--goldbg);color:#5E4716;line-height:1.7}
+footer{text-align:center;color:var(--faint);font-size:13px;padding:24px 0 10px}
+.skel{height:220px;border-radius:28px;background:linear-gradient(90deg,#EDE4CF,#F5EFE1,#EDE4CF);background-size:200% 100%;animation:sk 1.4s infinite}
+@keyframes sk{to{background-position:-200% 0}}
+.toast{position:fixed;bottom:22px;left:50%;transform:translate(-50%,10px);background:var(--text);color:#fff;padding:10px 18px;border-radius:12px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:60}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+@media (max-width:600px){
+  .hero2{padding:34px 18px 24px;border-radius:22px}
+  .when{grid-template-columns:1fr}
+  .sec,.rsvp{padding:22px 18px}
+  .welcome{font-size:18.5px}
+  .tl li{grid-template-columns:72px 20px minmax(0,1fr);gap:10px}
+  .tl .t{font-size:14px}
+  .choice{grid-template-columns:1fr}
+  .ch{min-height:58px;flex-direction:row;justify-content:flex-start;padding:0 18px}
+}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+</style>
+</head>
+<body>
+<div class="top"><a href="index.html"><span class="em"><svg width="24" height="24" viewBox="0 0 36 36" fill="none" stroke="#F7EFD9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 33V17"/><path d="M18 22l-6-5"/><path d="M18 19l6-5"/><circle cx="18" cy="9" r="4"/><circle cx="9" cy="14" r="3"/><circle cx="27" cy="11" r="3"/><path d="M11 33h14"/></svg></span><span data-famt>شجرة العائلة</span></a></div>
+<main class="inv" id="app"><div class="skel" aria-label="جارٍ التحميل"></div></main>
+<div class="toast" id="toast" role="status"></div>
+<script>
+(async function(){
+const {SB,esc,D,toast}=window.FT;
+const app=document.getElementById('app');
+const slug=(new URLSearchParams(location.search).get('i')||location.hash.slice(1)||'').replace(/[^A-Za-z0-9]/g,'').slice(0,20);
+const IC={
+  cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  pin:'<path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  check:'<path d="M5 12l5 5 9-10"/>', x:'<path d="M6 6l12 12M18 6L6 18"/>', q:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17v.5"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>', cam:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  wa:'<path d="M4 20l1.3-4A8 8 0 1 1 8 18.7z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1c-1-.4-1.6-1-2-2l1-1-1-2z"/>', down:'<path d="M12 5v14M6 13l6 6 6-6"/>'
+};
+const ic=(n,s=20,c='currentColor')=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
+const norm=s=>String(s||'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/ ابن /g,' بن ').replace(/\s+/g,' ').trim();
+const toLatin=s=>String(s||'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+
+let site={};try{site=await window.FT.boot();}catch(_){}
+if(!slug){app.innerHTML=msgCard('الرابط غير مكتمل','تأكد إنك فتحت الرابط كامل كما وصلك.');return;}
+const {data:inv,error}=await SB.rpc('get_invitation',{p_slug:slug});
+if(error||!inv){app.innerHTML=msgCard('تعذّر تحميل الدعوة','تأكد من اتصالك بالإنترنت ثم حدّث الصفحة.');return;}
+if(!inv.found){app.innerHTML=msgCard('الدعوة غير موجودة','يمكن الرابط قديم أو فيه خطأ. اطلب الرابط الصحيح من منظّم الفعالية.');return;}
+if(inv.offline){app.innerHTML=msgCard('الموقع متوقف مؤقتًا','نعود قريبًا بإذن الله.');return;}
+
+const FAM=inv.family_name||'العائلة';
+const ev=inv.event; const start=ev?new Date(ev.starts_at):null;
+document.title=inv.title+' · دعوة';
+const KEY='ft-inv-'+inv.slug;
+let saved=null;try{saved=JSON.parse(localStorage.getItem(KEY)||'null');}catch(_){}
+const S={pid:null,status:null,photo:null,step:'find',q:''};
+if(saved&&inv.people.some(p=>p.id===saved.pid)){S.pid=saved.pid;S.status=(inv.people.find(p=>p.id===saved.pid)||{}).status||saved.status;S.step=S.status?'done':'choose';}
+
+function msgCard(t,p){return `<section class="card sec" style="text-align:center"><h2 style="justify-content:center">${esc(t)}</h2><p style="color:var(--muted);line-height:1.8;margin:0">${esc(p)}</p></section>`;}
+const pat=`<svg class="pat" aria-hidden="true" preserveAspectRatio="xMidYMid slice" viewBox="0 0 800 400"><defs><pattern id="ip" width="56" height="56" patternUnits="userSpaceOnUse"><path d="M28 6l6 16 16 6-16 6-6 16-6-16-16-6 16-6z" fill="none" stroke="#F7EFD9" stroke-width="1"/></pattern></defs><rect width="800" height="400" fill="url(#ip)"/></svg>`;
+
+function countdown(){
+  if(!start)return '';const ms=start-Date.now();if(ms<=0)return '';
+  const d=Math.floor(ms/864e5),h=Math.floor(ms%864e5/36e5),m=Math.floor(ms%36e5/6e4);
+  return `<div class="cdown" aria-label="الوقت المتبقي"><div><b>${d}</b><span>يوم</span></div><div><b>${h}</b><span>ساعة</span></div><div><b>${m}</b><span>دقيقة</span></div></div>`;
+}
+function hero(){
+  const c=inv.counts||{};
+  return `<section class="hero2">${pat}<div class="in">
+   <span class="badge2">دعوة خاصة · ${esc(FAM==='العائلة'?'شباب العائلة':'شباب عائلة '+FAM)}</span>
+   <h1>${esc(inv.title)}</h1>
+   <div class="fam">يسعدنا حضورك</div>
+   ${ev?`<div class="when">
+     <div><small>${ic('cal',16,'#CFC6A8')} اليوم</small><b>${esc(D.weekday(start))}</b><span>${esc(D.hijri(start))}</span></div>
+     <div><small>${ic('clock',16,'#CFC6A8')} الوقت</small><b>${esc(D.time(start))}</b><span>${esc(D.day(start)+' '+D.month(start)+' '+start.getFullYear())}</span></div>
+     <div><small>${ic('pin',16,'#CFC6A8')} المكان</small><b>${esc(ev.location_name||'يُحدَّد لاحقًا')}</b>${ev.map_url?`<span><a href="${esc(ev.map_url)}" target="_blank" rel="noopener" style="color:#E9D9A8">افتح الخريطة</a></span>`:''}</div>
+   </div>${countdown()}`:''}
+   <div class="hacts"><a class="hbtn p" href="#rsvp">${ic('check',18,'#2B2A24')}أكّد حضورك</a>${ev?`<a class="hbtn" href="api/ics?id=${ev.id}">${ic('cal',18,'#F7EFD9')}أضفها لتقويمي</a>`:''}${ev&&ev.map_url?`<a class="hbtn" href="${esc(ev.map_url)}" target="_blank" rel="noopener">${ic('pin',18,'#F7EFD9')}الموقع</a>`:''}</div>
+   ${c.yes?`<div class="going">${c.yes} ${c.yes===1?'شخص أكّد':'أكّدوا'} حضورهم حتى الآن</div>`:''}
+  </div></section>`;
+}
+function body(){
+  const ag=(inv.agenda||[]).filter(a=>a&&(a.title||a.time));
+  return (inv.welcome?`<section class="card sec"><h2><i></i>كلمة ترحيب</h2><div class="welcome">${esc(inv.welcome)}</div><div class="sign">${esc(FAM==='العائلة'?'العائلة':'عائلة '+FAM)}</div></section>`:'')
+   +(ag.length?`<section class="card sec"><h2><i></i>برنامج الفعالية</h2><ol class="tl">${ag.map(a=>`<li><span class="t">${esc(a.time||'')}</span><span class="dot"></span><div><b>${esc(a.title||'')}</b>${a.desc?`<p>${esc(a.desc)}</p>`:''}</div></li>`).join('')}</ol></section>`:'')
+   +(inv.notes?`<section class="card sec"><h2><i></i>ملاحظات</h2><div class="notes">${esc(inv.notes)}</div></section>`:'');
+}
+const person=()=>inv.people.find(p=>p.id===S.pid);
+function rsvp(){
+  if(!inv.open&&S.step!=='done')return `<section class="card rsvp" id="rsvp"><h2>تأكيد الحضور</h2><div class="closed" style="margin-top:12px">انتهى وقت تأكيد الحضور. للاستفسار تواصل مع منظّم الفعالية.</div></section>`;
+  const dl=inv.deadline?`<div class="hint">آخر موعد للتأكيد: ${esc(D.full(new Date(inv.deadline)))}</div>`:'';
+  if(S.step==='find'){
+    const qq=norm(S.q);
+    const list=qq?inv.people.filter(p=>norm(p.line).includes(qq)).slice(0,25):[];
+    return `<section class="card rsvp" id="rsvp"><h2>أكّد حضورك</h2><p class="lead">ابحث عن اسمك في قائمة المدعوين، ثم اختر ردّك.</p>
+    <label class="srch">${ic('search',22,'#736D5F')}<input id="q" type="search" autocomplete="off" placeholder="اكتب اسمك واسم أبيك، مثل: محمد بن خالد" value="${esc(S.q)}" aria-label="ابحث عن اسمك"></label>
+    <div class="res" id="res">${qq?(list.length?list.map(p=>`<button type="button" class="pi" data-pid="${p.id}"><span class="av">${esc(p.n[0])}</span><span><b>${esc(p.n)}</b><small>${esc(p.line.split(' بن ').slice(1).join(' بن '))}</small></span>${p.status?`<em class="st-${p.status}">${p.status==='yes'?'أكّد حضوره':p.status==='no'?'اعتذر':'لم يقرر'}</em>`:''}</button>`).join(''):'<div class="hint">ما لقينا هذا الاسم في قائمة المدعوين. جرّب اسمك الأول بس، أو تواصل مع منظّم الفعالية.</div>'):''}</div>
+    <div class="hint">الدعوة لـ ${inv.people.length} من شباب العائلة.</div>${dl}</section>`;
+  }
+  const p=person();
+  if(S.step==='done'){
+    const t=S.status==='yes'?['تم تأكيد حضورك','ننتظرك بإذن الله، وجودك يكمّل اللقاء.']:S.status==='no'?['وصلنا اعتذارك','نفتقدك هالمرة، ونتمنى نشوفك في اللقاء القادم.']:['سجّلنا ردّك مبدئيًا','إذا تأكدت، ارجع لهذا الرابط وحدّث ردّك.'];
+    const msg=`السلام عليكم، هذي دعوة «${inv.title}»:\n${location.href.split('#')[0]}`;
+    return `<section class="card rsvp" id="rsvp"><div class="done"><span class="ok">${ic(S.status==='no'?'x':'check',36,S.status==='no'?'#A3412C':'#4F5D2F')}</span><h2>${t[0]}</h2><p>${esc(p?p.n:'')}، ${t[1]}</p>
+    <div class="dacts">${S.status!=='no'&&ev?`<a class="btn g" href="api/ics?id=${ev.id}">${ic('cal',18,'#fff')}أضفها لتقويمي</a>`:''}<a class="btn" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${ic('wa',18)}أرسل الدعوة لقريب</a></div>
+    ${inv.open?`<button type="button" class="lnk" data-act="edit">تعديل ردّي</button>`:''}</div></section>`;
+  }
+  const need=p.need||{};const needAny=need.phone||need.birth||need.photo;
+  return `<section class="card rsvp" id="rsvp"><h2>أكّد حضورك</h2>
+   <div class="me" style="margin-top:14px"><span class="av">${esc(p.n[0])}</span><span><b>${esc(p.n)}</b><small>${esc(p.line.split(' بن ').slice(1).join(' بن '))}</small></span><button type="button" class="lnk" data-act="other">مو أنا؟</button></div>
+   <div class="choice" role="group" aria-label="ردّك على الدعوة">
+    <button type="button" class="ch y" data-st="yes" aria-pressed="${S.status==='yes'}">${ic('check',26)}سأحضر بإذن الله</button>
+    <button type="button" class="ch m" data-st="maybe" aria-pressed="${S.status==='maybe'}">${ic('q',26)}لم أقرر بعد</button>
+    <button type="button" class="ch n" data-st="no" aria-pressed="${S.status==='no'}">${ic('x',26)}أعتذر</button>
+   </div>
+   ${needAny?`<div class="fill"><h3>ساعدنا نكمّل بياناتك في شجرة العائلة</h3><p class="why">ما تظهر أرقام الجوال للزوار أبدًا، وتوصل بياناتك للمشرف يراجعها قبل ما تنضاف.</p>
+    ${need.phone?`<div class="f"><label for="ph">رقم جوالك</label><input class="inp" id="ph" type="tel" inputmode="tel" dir="ltr" autocomplete="tel" placeholder="05XXXXXXXX" maxlength="15"></div>`:''}
+    ${need.birth?`<div class="f"><label for="by">سنة ميلادك (ميلادي)</label><input class="inp" id="by" inputmode="numeric" maxlength="4" dir="ltr" placeholder="مثال: 1998"><span class="h">لو تعرفها بالهجري بس، اكتبها هنا: <input id="byh" inputmode="numeric" maxlength="4" dir="ltr" placeholder="1419" style="width:80px;min-height:34px;border:1px solid var(--line2);border-radius:8px;padding:0 8px;font:inherit;background:#fff" aria-label="سنة الميلاد بالهجري"> وتتحول تلقائيًا.</span></div>`:''}
+    ${need.photo?`<div class="f"><span class="lb">صورتك الشخصية</span><div class="ph"><span class="pv" id="pv">${S.photo?`<img src="${S.photo}" alt="معاينة الصورة">`:ic('cam',30,'#736D5F')}</span><div><label class="btn" for="pf" style="cursor:pointer">${ic('cam',18)}${S.photo?'تغيير الصورة':'اختر صورة'}</label><input id="pf" type="file" accept="image/*" hidden><div class="h" style="margin-top:6px">تظهر في بطاقتك داخل الشجرة، وتُقص على شكل دائرة.</div></div></div></div>`:''}
+   </div>`:''}
+   <div class="f" style="margin-top:16px"><label for="nt">ملاحظة للمنظّم <span class="h">(اختياري)</span></label><input class="inp" id="nt" maxlength="300" placeholder="مثال: بأتأخر نص ساعة"></div>
+   <button type="button" class="send" id="send">${S.status?'إرسال الرد':'اختر ردّك أولًا'}</button>
+   <div class="err" id="err" role="alert"></div>${dl}
+  </section>`;
+}
+function render(keepFocus){
+  app.innerHTML=hero()+body()+rsvp()+`<footer>${esc(FAM==='العائلة'?'شجرة العائلة':'شجرة عائلة '+FAM)} · نسبٌ يُحفظ، ورحمٌ تُوصل</footer>`;
+  bind(keepFocus);
+}
+function renderRsvp(focusId){
+  const old=document.getElementById('rsvp');const keep=collect();
+  old.outerHTML=rsvp();bind();restore(keep);
+  if(focusId){const el=document.getElementById(focusId);if(el){el.focus();if(el.setSelectionRange&&el.value)el.setSelectionRange(el.value.length,el.value.length);}}
+}
+function collect(){const o={};['ph','by','byh','nt'].forEach(id=>{const e=document.getElementById(id);if(e)o[id]=e.value;});return o;}
+function restore(o){Object.entries(o).forEach(([k,v])=>{const e=document.getElementById(k);if(e)e.value=v;});}
+function bind(){
+  const q=document.getElementById('q');
+  if(q)q.oninput=()=>{S.q=q.value;renderRsvp('q');};
+  const byh=document.getElementById('byh');
+  if(byh)byh.oninput=()=>{const h=+toLatin(byh.value);if(h>=1330&&h<=1450){document.getElementById('by').value=Math.round(h*0.970229+621.5643);}};
+  const pf=document.getElementById('pf');
+  if(pf)pf.onchange=()=>{const f=pf.files[0];if(!f)return;resize(f).then(d=>{S.photo=d;renderRsvp();}).catch(()=>toast('تعذّر قراءة الصورة، جرّب صورة ثانية'));};
+  const send=document.getElementById('send');if(send)send.onclick=submit;
+}
+function resize(file){return new Promise((ok,bad)=>{const url=URL.createObjectURL(file);const im=new Image();im.onload=()=>{const s=Math.min(im.naturalWidth,im.naturalHeight);if(!s){bad();return;}const c=document.createElement('canvas');const out=Math.min(640,s);c.width=c.height=out;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,out,out);x.drawImage(im,(im.naturalWidth-s)/2,(im.naturalHeight-s)/3,s,s,0,0,out,out);URL.revokeObjectURL(url);ok(c.toDataURL('image/jpeg',0.86));};im.onerror=()=>{URL.revokeObjectURL(url);bad();};im.src=url;});}
+async function submit(){
+  const err=document.getElementById('err');err.textContent='';
+  if(!S.status){err.textContent='اختر ردّك: سأحضر، أو لم أقرر، أو أعتذر.';return;}
+  const v=collect();const body={slug:inv.slug,person_id:S.pid,status:S.status,note:(v.nt||'').trim()||undefined};
+  if(v.ph&&v.ph.trim()){const d=toLatin(v.ph).replace(/\D/g,'').replace(/^00966|^966/,'');const p=d.length===9&&d[0]==='5'?'0'+d:d;if(!/^05\d{8}$/.test(p)){err.textContent='رقم الجوال لازم يكون 10 أرقام ويبدأ بـ 05';document.getElementById('ph').focus();return;}body.phone=p;}
+  if(v.by&&v.by.trim()){const y=+toLatin(v.by);if(!(y>=1930&&y<=new Date().getFullYear()-3)){err.textContent='تأكد من سنة الميلاد (ميلادي، أربعة أرقام).';document.getElementById('by').focus();return;}body.birth_year=y;}
+  if(S.photo)body.photo=S.photo;
+  const b=document.getElementById('send');b.disabled=true;b.textContent='جارٍ الإرسال…';
+  let res;try{res=await SB.functions.invoke('invite-respond',{body});}catch(e){res={error:e};}
+  if(res.error){let m='تعذّر الإرسال، تأكد من الاتصال وحاول مرة ثانية.';try{const j=await res.error.context.json();if(j&&j.error)m=j.error;}catch(_){}err.textContent=m;b.disabled=false;b.textContent='إرسال الرد';return;}
+  const p=person();const prev=p.status;p.status=S.status;
+  if(body.phone)p.need.phone=false;if(body.birth_year)p.need.birth=false;if(body.photo)p.need.photo=false;
+  inv.counts=inv.counts||{yes:0,no:0,maybe:0};if(prev)inv.counts[prev]=Math.max(0,(inv.counts[prev]||0)-1);inv.counts[S.status]=(inv.counts[S.status]||0)+1;
+  try{localStorage.setItem(KEY,JSON.stringify({pid:S.pid,status:S.status}));}catch(_){}
+  S.step='done';S.photo=null;render();document.getElementById('rsvp').scrollIntoView({behavior:'smooth',block:'start'});
+}
+app.addEventListener('click',e=>{
+  const t=e.target.closest('[data-pid],[data-st],[data-act]');if(!t)return;
+  if(t.dataset.pid){S.pid=+t.dataset.pid;const p=person();S.status=p.status||null;S.step='choose';renderRsvp();document.getElementById('rsvp').scrollIntoView({behavior:'smooth',block:'start'});return;}
+  if(t.dataset.st){S.status=t.dataset.st;renderRsvp();return;}
+  if(t.dataset.act==='other'){S.pid=null;S.status=null;S.step='find';S.photo=null;try{localStorage.removeItem(KEY);}catch(_){}renderRsvp('q');return;}
+  if(t.dataset.act==='edit'){S.step='choose';renderRsvp();return;}
+});
+render();
+if(start&&start>Date.now())setInterval(()=>{const c=document.querySelector('.cdown');if(c)c.outerHTML=countdown();},30000);
+})();
+</script>
+</body>
+</html>

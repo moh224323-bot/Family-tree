@@ -8,6 +8,7 @@ let P=[], by={}, founder=null, B=[];
 let SUPS=[], REQS=[], LOG=[];
 let EVS=[], ALB=[], PH={};
 let MAR=[];               // marriages (wives)
+let INVS=[],RESP=[],INVD={}; // invitations, their responses, cached invitee lists
 let SET={};
 const S={view:'overview',q:'',branch:'all',genF:'all',status:'all',limit:25,rqTab:'all',fresh:null,pvDev:'d',pvViewer:'visitor'};
 
@@ -19,6 +20,7 @@ const gen=id=>anc(id).length;
 const desc=id=>{let n=0;const s=[...(by[id]?by[id].kids:[])];while(s.length){const c=s.pop();n++;s.push(...by[c].kids);}return n;};
 const short=(id,k=2)=>by[id]?anc(id).slice(0,k).map(i=>by[i].n).join(' بن '):'—';
 const fullName=id=>by[id]?anc(id).map(i=>by[i].n).join(' بن '):'—';
+const joinN=ids=>ids.filter(i=>by[i]).map(i=>by[i].n).join(' بن ');
 const branchOf=id=>{const a=anc(id);return a.length>=2?a[a.length-2]:a[0];};
 const PAL=['#C9A75E','#9DAA74','#D39A72','#86AE9F','#C2AE84','#B79A7A','#A3B58C'];
 let bColor={};
@@ -98,9 +100,12 @@ async function loadAll(){
   SB.from('events').select('*').order('starts_at',{ascending:false}),
   SB.from('albums').select('*'),
   SB.from('photos').select('*').order('created_at'),
-  SB.from('marriages').select('*').order('husband_id').order('wife_order').order('id')
+  SB.from('marriages').select('*').order('husband_id').order('wife_order').order('id'),
+  isAdmin()?SB.from('invitations').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]}),
+  isAdmin()?SB.from('invitation_responses').select('*').order('updated_at',{ascending:false}):Promise.resolve({data:[]})
  ];
- const [pp,tr,rq,lg,st,sf,scp,ev,al,ph,mr]=await Promise.all(q);
+ const [pp,tr,rq,lg,st,sf,scp,ev,al,ph,mr,iv,ir]=await Promise.all(q);
+ INVS=iv.error?[]:(iv.data||[]);RESP=ir.error?[]:(ir.data||[]);
  for(const r of [pp,tr,rq,lg,st,sf,scp,ev,al,ph]) if(r.error) throw r.error;
  MAR=mr.error?[]:(mr.data||[]);
  EVS=ev.data||[];ALB=al.data||[];PH={};(ph.data||[]).forEach(p=>(PH[p.album_id]=PH[p.album_id]||[]).push(p));
@@ -125,7 +130,7 @@ async function refresh(){try{await loadAll();}catch(e){toast(errMsg(e),true);}re
 const visibleReqs=()=>REQS.filter(r=>{const t=r.father_id||r.target_id;return by[t]&&inScope(t);});
 function renderNav(){
  const admin=isAdmin();
- const items=[['overview','home','نظرة عامة'],['members','users','الأفراد'],['requests','inbox','الطلبات',visibleReqs().length],['events','cal','الفعاليات',EVS.filter(e=>evEnd(e)>=new Date()).length,'g'],['photos','img','الصور'],...(admin?[['site','globe','الموقع والنشر',SET.online===false?'متوقف':0],['sups','shield','المشرفون',SUPS.length,'g']]:[]),['log','clock','سجل التعديلات'],...(admin?[['settings','gear','الخصوصية والإعدادات']]:[])];
+ const items=[['overview','home','نظرة عامة'],['members','users','الأفراد'],['requests','inbox','الطلبات',visibleReqs().length],['events','cal','الفعاليات',EVS.filter(e=>evEnd(e)>=new Date()).length,'g'],['photos','img','الصور'],...(admin?[['invites','star','الدعوات',RESP.filter(r=>r.data_state==='pending').length],['site','globe','الموقع والنشر',SET.online===false?'متوقف':0],['sups','shield','المشرفون',SUPS.length,'g']]:[]),['log','clock','سجل التعديلات'],...(admin?[['settings','gear','الخصوصية والإعدادات']]:[])];
  const s=curSup();
  document.getElementById('side').innerHTML=items.map(([k,i,t,c,cl])=>`<button type="button" class="nav ${S.view===k?'on':''}" data-view="${k}">${ic(i)}<span>${t}</span>${c?`<span class="c ${cl||''}">${c}</span>`:''}</button>`).join('')+
  `<div class="sidefoot">${s?`<b>صلاحياتك</b>مشرف على ${esc(scopeNames(s))} (${scopeTotal(s)} فردًا). ${can('direct')?'إضافاتك تُنشر مباشرة.':'إضافاتك تُراجع من المدير قبل النشر.'}`:`<b>المدير العام</b>صلاحيات كاملة على ${P.length} فردًا${B.length?' و'+B.length+' فروع':''}.`}</div>`;
@@ -258,9 +263,9 @@ function vSettings(){
 
 function render(){
  if(!ME)return;
- if(!isAdmin()&&['sups','settings','site'].includes(S.view))S.view='overview';
+ if(!isAdmin()&&['sups','settings','site','invites'].includes(S.view))S.view='overview';
  renderNav();
- const v={site:vSite,events:vEvents,photos:vPhotos,overview:vOverview,members:vMembers,requests:vRequests,sups:vSups,log:vLog,settings:vSettings}[S.view]||vOverview;
+ const v={invites:vInvites,site:vSite,events:vEvents,photos:vPhotos,overview:vOverview,members:vMembers,requests:vRequests,sups:vSups,log:vLog,settings:vSettings}[S.view]||vOverview;
  main.innerHTML=v();
  renderPill(); if(S.view==='site')setupPreview();
  bindMembers();
@@ -510,6 +515,167 @@ document.addEventListener('click',e=>{
  if(d.act==='delWife'){delWife();return;}
  if(d.act==='newWife'){D.w=null;D.st='married';D.arm=null;drawWives();return;}
  if(d.act==='wivesBack'){const b=D.back;D=b;if(D.mode==='edit'||D.mode==='add'){if(D.father&&!wivesOf(D.father).some(m=>String(m.id)===D.mom))D.mom=defaultMom(D.father);drawHTML();if(b.keep)restore(b.keep);}return;}
+});
+
+/* ================= invitations (RSVP + collecting missing data) ================= */
+const invLink=v=>location.origin+location.pathname.replace(/[^/]*$/,'')+'invite.html?i='+v.slug;
+const invEvent=v=>EVS.find(e=>e.id===v.event_id)||null;
+const RST={yes:['سيحضر','b-ok'],maybe:['لم يقرر','b-gold'],no:['اعتذر','b-red']};
+const WELCOME=t=>`السلام عليكم ورحمة الله وبركاته،
+
+يسرّنا أن ندعوكم لحضور «${t}»، لقاءٌ يجمع شباب العائلة على المحبة والأُلفة، نجدّد فيه روابط القربى، ونتعارف عن قرب، ونصنع معًا ذكريات جميلة تبقى للأجيال القادمة.
+
+حضوركم شرفٌ لنا، وبه يكتمل اللقاء.`;
+const AGENDA0=[{time:'8:00 م',title:'الاستقبال والقهوة',desc:''},{time:'8:30 م',title:'كلمة ترحيبية',desc:''},{time:'9:00 م',title:'تعارف ومسابقات',desc:''},{time:'10:00 م',title:'العشاء',desc:''}];
+async function invPeople(v,force){
+ if(!force&&INVD[v.slug])return INVD[v.slug];
+ const {data,error}=await SB.rpc('get_invitation',{p_slug:v.slug});
+ if(error)throw error;INVD[v.slug]=data;return data;
+}
+function waText(v){
+ const e=invEvent(v);let t=`السلام عليكم ورحمة الله وبركاته\n\nيسعدنا دعوتكم لحضور «${v.title}»`;
+ if(e){const d=new Date(e.starts_at);t+=`\n\n🗓 ${fmtD({weekday:'long',day:'numeric',month:'long'}).format(d)} (${hDate(d)})\n⏰ ${tOf(d)}`;if(e.location_name)t+=`\n📍 ${e.location_name}`;}
+ t+=`\n\nنرجو تأكيد الحضور وتحديث بياناتكم في شجرة العائلة من الرابط:\n${invLink(v)}`;
+ if(v.deadline)t+=`\n\nآخر موعد للتأكيد: ${fmtD({weekday:'long',day:'numeric',month:'long'}).format(new Date(v.deadline))}`;
+ return t;
+}
+function vInvites(){
+ if(S.inv){const v=INVS.find(x=>x.id===S.inv);if(v)return vInvite(v);S.inv=null;}
+ return `<div class="ph"><div><h1>الدعوات</h1><p>رابط واحد ترسله للعائلة: يأكدون حضورهم، ويكمّلون بياناتهم الناقصة</p></div>
+  <div class="sp"><button class="btn p" type="button" data-act="newInv">${ic('plus')}دعوة جديدة</button></div></div>
+  ${INVS.length?`<div class="invs">${INVS.map(v=>{const e=invEvent(v);const rs=RESP.filter(r=>r.invitation_id===v.id);const y=rs.filter(r=>r.status==='yes').length,pend=rs.filter(r=>r.data_state==='pending').length;
+   return `<button type="button" class="card invc" data-inv="${v.id}"><div class="ih"><span class="ic" style="background:var(--goldbg)">${ic('star',20,'#8A6A26')}</span><span><b>${esc(v.title)}</b><small>${e?esc(fmtD({weekday:'long',day:'numeric',month:'long'}).format(new Date(e.starts_at)))+' · '+esc(hDate(new Date(e.starts_at))):'غير مربوطة بفعالية'}</small></span>${v.is_open?'<span class="badge b-ok">مفتوحة</span>':'<span class="badge b-mute">مغلقة</span>'}</div>
+   <div class="inums"><span><b>${y}</b>سيحضر</span><span><b>${rs.filter(r=>r.status==='maybe').length}</b>لم يقرر</span><span><b>${rs.filter(r=>r.status==='no').length}</b>اعتذر</span><span><b style="color:#8A6A26">${pend}</b>بيانات للاعتماد</span></div></button>`;}).join('')}</div>`
+  :`<section class="card start"><h2>أول دعوة</h2><p class="muted" style="margin:0;line-height:1.8">أنشئ دعوة مربوطة بفعالية، اكتب نص الترحيب والبرنامج، وأرسل الرابط في قروب العائلة. كل شخص يدوّر على اسمه، يأكد حضوره، ويعبّي الناقص من جواله وسنة ميلاده وصورته.</p><button class="btn p" type="button" data-act="newInv">${ic('plus')}دعوة جديدة</button></section>`}`;
+}
+function vInvite(v){
+ const e=invEvent(v),rs=RESP.filter(r=>r.invitation_id===v.id),d=INVD[v.slug];
+ if(!d){invPeople(v).then(()=>{if(S.view==='invites'&&S.inv===v.id)render();}).catch(err=>toast(errMsg(err),true));}
+ const people=d?d.people:[];const rset=new Set(rs.map(r=>r.person_id));
+ const none=people.filter(p=>!rset.has(p.id));
+ const cnt=k=>rs.filter(r=>r.status===k).length;
+ const pend=rs.filter(r=>r.data_state==='pending');
+ const tab=S.invTab||'resp';
+ const nm=id=>by[id]?esc(joinN(anc(id).slice(0,3))):'#'+id;
+ let body='';
+ if(tab==='resp'){
+  const list=rs.filter(r=>S.invF?r.status===S.invF:true);
+  body=`<div class="tabs" style="margin:0 0 12px">${[['','الكل',rs.length],['yes','سيحضر',cnt('yes')],['maybe','لم يقرر',cnt('maybe')],['no','اعتذر',cnt('no')]].map(([k,t,n])=>`<button type="button" class="tab ${(S.invF||'')===k?'on':''}" data-invf="${k}">${t} (${n})</button>`).join('')}</div>
+  <section class="card"><div class="list">${list.length?list.map(r=>`<div class="li">${by[r.person_id]?avatar(r.person_id):''}<div class="tx"><b>${nm(r.person_id)}</b>${r.note?`<div class="sub">«${esc(r.note)}»</div>`:''}<div class="sub">${esc(ago(r.updated_at))}</div></div><span class="badge ${RST[r.status][1]}">${RST[r.status][0]}</span></div>`).join(''):'<div class="empty">ما فيه ردود هنا بعد.</div>'}</div></section>
+  ${cnt('yes')?`<button class="btn sm" type="button" data-act="copyYes" style="margin-top:12px">نسخ أسماء الحاضرين (${cnt('yes')})</button>`:''}`;
+ }else if(tab==='data'){
+  body=`${pend.length>1?`<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap"><button class="btn p" type="button" data-act="applyAll">${ic('check')}اعتماد كل البيانات (${pend.length})</button><span class="sub" style="align-self:center">تنضاف للشجرة مباشرة وتنسجل في سجل التعديلات</span></div>`:''}
+  <section class="card"><div class="list">${pend.length?pend.map(r=>{const x=by[r.person_id];return `<div class="li" style="align-items:flex-start;flex-wrap:wrap">${x?avatar(r.person_id):''}<div class="tx"><b>${nm(r.person_id)}</b>
+   <div class="dfields">${r.phone?`<label><input type="checkbox" checked data-rf="${r.id}:phone"> الجوال: <b dir="ltr">${esc(r.phone)}</b>${x&&x.ph?` <span class="sub">(بدل ${esc(x.ph)})</span>`:''}</label>`:''}
+   ${r.birth_year?`<label><input type="checkbox" checked data-rf="${r.id}:birth"> سنة الميلاد: <b>${r.birth_year}</b> <span class="sub">(${new Date().getFullYear()-r.birth_year} سنة)</span>${x&&x.b?` <span class="sub">(بدل ${x.b})</span>`:''}</label>`:''}
+   ${r.photo_path?`<label class="dph"><input type="checkbox" checked data-rf="${r.id}:photo"> الصورة: <img src="${esc(photoUrl(r.photo_path))}" alt="الصورة المرسلة" loading="lazy"></label>`:''}</div></div>
+   <span style="display:flex;gap:6px"><button class="btn sm ok" type="button" data-apply="${r.id}">${ic('check',15)}اعتماد</button><button class="btn sm no" type="button" data-dismiss="${r.id}">تجاهل</button></span></div>`;}).join(''):'<div class="empty">لا توجد بيانات بانتظار الاعتماد.</div>'}</div></section>`;
+ }else if(tab==='none'){
+  body=`<section class="card"><div class="ch"><h2>لم يردّوا بعد (${none.length})</h2>${none.length?`<button class="lnk" type="button" data-act="copyNone">نسخ الأسماء</button>`:''}</div><div class="list">${d?(none.length?none.map(p=>`<div class="li">${by[p.id]?avatar(p.id):''}<div class="tx"><b>${esc(p.line.split(' بن ').slice(0,3).join(' بن '))}</b><div class="sub">${[p.need.phone?'بدون جوال':'',p.need.birth?'بدون سنة ميلاد':'',p.need.photo?'بدون صورة':''].filter(Boolean).join(' · ')||'بياناته مكتملة'}</div></div>${by[p.id]&&by[p.id].ph?`<a class="btn sm" href="https://wa.me/966${esc(by[p.id].ph.slice(1))}?text=${encodeURIComponent(waText(v))}" target="_blank" rel="noopener">واتساب</a>`:''}</div>`).join(''):'<div class="empty">الكل ردّ. ما شاء الله!</div>'):'<div class="empty">جارٍ التحميل…</div>'}</div></section>`;
+ }else{
+  const ex=new Set(v.exclude_ids||[]),inc=new Set(v.include_ids||[]);
+  body=`<div class="note" style="background:var(--bluebg);color:#24485E;margin-bottom:12px">${ic('info',18,'#2F5D7A')}<span>القائمة تنحسب تلقائيًا: الأحياء من ${v.min_age} إلى ${v.max_age} سنة${v.gender==='m'?' من الذكور':''}${v.include_unknown_age?'، ومعهم من ما عنده سنة ميلاد إلا إذا كان واضح إنه أكبر (عنده أحفاد مثلًا)':''}. تقدر تستبعد أي اسم أو تضيف اسمًا من خارج الفئة.</span></div>
+  <div class="pick" style="margin-bottom:12px"><input class="inp" id="incq" type="search" autocomplete="off" placeholder="أضف شخصًا للدعوة: اكتب اسمه ونسبه" aria-label="إضافة شخص للدعوة"><div class="opts" id="inco"></div></div>
+  <section class="card"><div class="ch"><h2>المدعوون (${people.length})</h2></div><div class="list">${d?people.map(p=>`<div class="li">${by[p.id]?avatar(p.id):''}<div class="tx"><b>${esc(p.line.split(' بن ').slice(0,3).join(' بن '))}</b>${inc.has(p.id)?'<div class="sub">مضاف يدويًا</div>':''}</div><button class="btn sm no" type="button" data-excl="${p.id}">استبعاد</button></div>`).join(''):'<div class="empty">جارٍ التحميل…</div>'}
+  ${[...ex].filter(id=>by[id]).map(id=>`<div class="li" style="opacity:.6">${avatar(id)}<div class="tx"><b>${nm(id)}</b><div class="sub">مستبعد</div></div><button class="btn sm" type="button" data-unexcl="${id}">إرجاع</button></div>`).join('')}</div></section>`;
+ }
+ return `<div class="ph"><div><button class="lnk" type="button" data-act="invBack" style="margin:0 0 6px;padding:0">‹ كل الدعوات</button><h1>${esc(v.title)}</h1><p>${e?esc(fmtD({weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date(e.starts_at)))+' · '+esc(tOf(new Date(e.starts_at)))+(e.location_name?' · '+esc(e.location_name):''):'غير مربوطة بفعالية'}</p></div>
+  <div class="sp"><button class="btn" type="button" data-act="editInv">${ic('edit')}تعديل الدعوة</button><a class="btn" href="${esc(invLink(v))}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">${ic('eye')}معاينة</a></div></div>
+  <section class="card share"><div class="tx"><b>${v.is_open?'الدعوة مفتوحة':'الدعوة مغلقة'}${v.deadline?' · آخر موعد '+esc(fmtD({day:'numeric',month:'long'}).format(new Date(v.deadline))):''}</b><div class="lk" dir="ltr">${esc(invLink(v))}</div></div>
+   <div class="sacts"><button class="btn p" type="button" data-act="waInv">إرسال في واتساب</button><button class="btn" type="button" data-act="copyLink">نسخ الرابط</button><button class="btn" type="button" data-act="copyMsg">نسخ الرسالة</button></div></section>
+  <div class="kpis" style="margin-top:16px">
+   <div class="card kpi"><span class="l">المدعوون</span><span class="v">${d?people.length:'…'}</span></div>
+   <div class="card kpi"><span class="l">سيحضر</span><span class="v" style="color:var(--olive)">${cnt('yes')}</span></div>
+   <div class="card kpi"><span class="l">لم يقرر</span><span class="v" style="color:#8A6A26">${cnt('maybe')}</span></div>
+   <div class="card kpi"><span class="l">اعتذر</span><span class="v" style="color:var(--red)">${cnt('no')}</span></div>
+   <div class="card kpi"><span class="l">لم يرد</span><span class="v">${d?none.length:'…'}</span></div>
+  </div>
+  <div class="tabs" style="margin-bottom:14px">${[['resp','الردود',rs.length],['data','بيانات للاعتماد',pend.length],['none','لم يردّوا',d?none.length:''],['list','قائمة المدعوين','']].map(([k,t,n])=>`<button type="button" class="tab ${tab===k?'on':''}" data-invtab="${k}">${t}${n!==''?' ('+n+')':''}</button>`).join('')}</div>
+  ${body}`;
+}
+function invDrawer(v){
+ const e0=v?null:(EVS.filter(e=>new Date(e.starts_at)>=new Date()).sort((a,b)=>new Date(a.starts_at)-new Date(b.starts_at))[0]||null);
+ D={mode:'inv',edit:v?v.id:null,agenda:JSON.parse(JSON.stringify(v?v.agenda:AGENDA0)),open:v?v.is_open:true,unk:v?v.include_unknown_age:true,gender:v?v.gender:'m',ask:{phone:v?v.ask_phone:true,birth:v?v.ask_birth:true,photo:v?v.ask_photo:true},busy:false,
+   init:{ev:v?v.event_id||'':(e0?e0.id:''),title:v?v.title:(e0?e0.title:''),welcome:v?v.welcome||'':null,notes:v?v.notes||'':'',min:v?v.min_age:15,max:v?v.max_age:40,dl:v&&v.deadline?keyOf(new Date(v.deadline)):''}};
+ if(D.init.welcome===null)D.init.welcome=WELCOME(D.init.title||'لقاء شباب العائلة');
+ drawInv();drawer.classList.add('on');scrim.classList.add('on');
+}
+function invCollect(){const g=id=>{const e=document.getElementById(id);return e?e.value:'';};
+ D.agenda=[...drawer.querySelectorAll('.agr')].map(r=>({time:r.querySelector('[data-ag=time]').value.trim(),title:r.querySelector('[data-ag=title]').value.trim(),desc:r.querySelector('[data-ag=desc]').value.trim()}));
+ D.init={ev:g('ivE'),title:g('ivT'),welcome:g('ivW'),notes:g('ivN'),min:g('ivMin'),max:g('ivMax'),dl:g('ivDl')};}
+function drawInv(){
+ const I0=D.init,evs=EVS.slice().sort((a,b)=>new Date(b.starts_at)-new Date(a.starts_at));
+ const sw=(k,on,t,h)=>`<div class="perm"><span>${t}${h?`<small>${h}</small>`:''}</span><button type="button" class="sw" role="switch" aria-checked="${on}" data-ivsw="${k}" aria-label="${t}"></button></div>`;
+ drawer.innerHTML=`<div class="dh"><div><h3 id="dTitle">${D.edit?'تعديل الدعوة':'دعوة جديدة'}</h3><div class="sub" style="margin-top:4px">تظهر للمدعوين كصفحة دعوة أنيقة على جوالاتهم</div></div><button class="x" type="button" data-act="close" aria-label="إغلاق">${ic('x')}</button></div>
+ <div class="db">
+  <div class="f"><label for="ivE">الفعالية</label>${evs.length?`<select class="inp" id="ivE"><option value="">— بدون فعالية —</option>${evs.map(e=>`<option value="${e.id}" ${String(I0.ev)===String(e.id)?'selected':''}>${esc(e.title)} · ${esc(fmtD({day:'numeric',month:'long'}).format(new Date(e.starts_at)))}</option>`).join('')}</select><span class="h">التاريخ والوقت والمكان تنسحب من الفعالية.</span>`:`<div class="note" style="background:var(--goldbg);color:#5E4716">ما فيه فعاليات بعد. أضف الفعالية من قسم «الفعاليات» عشان يطلع موعدها ومكانها في الدعوة. <button class="lnk" type="button" data-view="events" style="margin:0;display:inline">الفعاليات</button></div>`}</div>
+  <div class="f"><label for="ivT">عنوان الدعوة</label><input class="inp" id="ivT" maxlength="120" value="${esc(I0.title)}" placeholder="مثال: ملتقى شباب العائلة الأول"><span class="err" id="eIT">اكتب العنوان</span></div>
+  <div class="f"><label for="ivW">نص الترحيب</label><textarea class="inp" id="ivW" maxlength="3000" style="min-height:190px;line-height:1.9">${esc(I0.welcome)}</textarea></div>
+  <div class="f"><span class="lb">برنامج الفعالية</span><div class="ags">${D.agenda.map((a,i)=>`<div class="agr"><input class="inp" data-ag="time" value="${esc(a.time)}" placeholder="8:00 م" aria-label="الوقت"><input class="inp" data-ag="title" value="${esc(a.title)}" placeholder="الفقرة" aria-label="الفقرة"><input class="inp agd" data-ag="desc" value="${esc(a.desc||'')}" placeholder="تفاصيل (اختياري)" aria-label="تفاصيل الفقرة"><span class="agb">${i?`<button type="button" class="btn sm" data-agup="${i}" aria-label="تقديم">↑</button>`:''}<button type="button" class="btn sm no" data-agdel="${i}" aria-label="حذف الفقرة">${ic('x',14)}</button></span></div>`).join('')}</div>
+   <button type="button" class="btn sm" data-act="agAdd" style="align-self:flex-start">${ic('plus',15)}إضافة فقرة</button></div>
+  <div class="f"><label for="ivN">ملاحظات <span class="sub">(اختياري: اللبس، المواقف، ما يحضره كل شخص…)</span></label><textarea class="inp" id="ivN" maxlength="1500" style="min-height:80px">${esc(I0.notes)}</textarea></div>
+  <div class="f"><span class="lb">من المدعوون؟</span>
+   <div class="row2"><div class="f"><label for="ivMin">من عمر</label><input class="inp" id="ivMin" inputmode="numeric" value="${esc(I0.min)}"></div><div class="f"><label for="ivMax">إلى عمر</label><input class="inp" id="ivMax" inputmode="numeric" value="${esc(I0.max)}"></div></div>
+   <div class="segm"><button type="button" class="${D.gender==='m'?'on':''}" data-ivg="m">الذكور</button><button type="button" class="${D.gender==='all'?'on':''}" data-ivg="all">الجميع</button></div>
+   ${sw('unk',D.unk,'ضم من ليس له سنة ميلاد','إلا إذا كان واضح إنه أكبر من الفئة')}</div>
+  <div class="f"><span class="lb">اطلب من المدعو يكمّل</span>${sw('phone',D.ask.phone,'رقم الجوال','')}${sw('birth',D.ask.birth,'سنة الميلاد','')}${sw('photo',D.ask.photo,'الصورة الشخصية','')}<span class="h">يُطلب منه فقط الناقص عنده، وتنتظر اعتمادك قبل ما تنضاف للشجرة.</span></div>
+  <div class="row2"><div class="f"><label for="ivDl">آخر موعد للتأكيد <span class="sub">(اختياري)</span></label><input class="inp" id="ivDl" type="date" value="${esc(I0.dl)}"></div>
+  <div class="f"><span class="lb">الحالة</span>${sw('open',D.open,'الدعوة مفتوحة للردود','')}</div></div>
+ </div>
+ <div class="df"><button class="btn p" type="button" data-act="saveInv" ${D.busy?'disabled':''}>${D.busy?'جارٍ الحفظ…':D.edit?'حفظ':'إنشاء الدعوة'}</button><button class="btn" type="button" data-act="close">إلغاء</button>${D.edit?`<button class="btn no" type="button" data-act="delInv" style="margin-inline-start:auto">${D.arm?'اضغط للتأكيد':'حذف الدعوة'}</button>`:''}</div>`;
+}
+async function saveInv(){
+ invCollect();const I0=D.init;
+ if(!I0.title.trim()){document.getElementById('eIT').classList.add('on');return;}
+ let mn=+toLat(I0.min)||0,mx=+toLat(I0.max)||40;if(mn>mx)[mn,mx]=[mx,mn];
+ const row={title:I0.title.trim(),event_id:I0.ev?+I0.ev:null,welcome:I0.welcome.trim()||null,notes:I0.notes.trim()||null,agenda:D.agenda.filter(a=>a.title||a.time),
+  min_age:Math.max(0,Math.min(120,mn)),max_age:Math.max(1,Math.min(120,mx)),include_unknown_age:D.unk,gender:D.gender,ask_phone:D.ask.phone,ask_birth:D.ask.birth,ask_photo:D.ask.photo,is_open:D.open,
+  deadline:I0.dl?new Date(I0.dl+'T23:59:00+03:00').toISOString():null,updated_at:new Date().toISOString()};
+ D.busy=true;drawInv();
+ const r=D.edit?await SB.from('invitations').update(row).eq('id',D.edit).select().single():await SB.from('invitations').insert({...row,created_by_name:myName()}).select().single();
+ if(r.error){D.busy=false;drawInv();toast(errMsg(r.error),true);return;}
+ const id=r.data.id;delete INVD[r.data.slug];closeDrawer();await refresh();S.view='invites';S.inv=id;S.invTab='resp';render();toast(D&&D.edit?'تم حفظ الدعوة':'الدعوة جاهزة، أرسل الرابط للعائلة');
+}
+const toLat=s=>String(s||'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+async function copyText(t,msg){try{await navigator.clipboard.writeText(t);toast(msg);}catch(_){prompt('انسخ النص:',t);}}
+async function applyResp(id,fields){const {error}=await SB.rpc('apply_invite_response',{p_id:id,p_fields:fields});if(error)throw error;}
+async function setInvList(v,patch){const {error}=await SB.from('invitations').update(patch).eq('id',v.id);if(error){toast(errMsg(error),true);return;}Object.assign(v,patch);delete INVD[v.slug];render();}
+document.addEventListener('input',e=>{
+ if(e.target.id!=='incq')return;const v=INVS.find(x=>x.id===S.inv);const o=document.getElementById('inco');const q=norm(e.target.value);
+ if(!q){o.classList.remove('on');return;}
+ const res=P.filter(x=>!x.dead&&norm(fullName(x.id)).includes(q)).slice(0,10);
+ o.innerHTML=res.length?res.map(x=>`<button type="button" class="opt" data-incl="${x.id}">${avatar(x.id)}<span>${esc(x.n)}<small>${esc(joinN(anc(x.id).slice(1,4)))}</small></span></button>`).join(''):'<div class="empty" style="padding:14px">لا توجد نتائج</div>';o.classList.add('on');
+});
+document.addEventListener('click',async e=>{
+ if(!ME)return;
+ const t=e.target.closest('[data-inv],[data-invtab],[data-invf],[data-apply],[data-dismiss],[data-excl],[data-unexcl],[data-incl],[data-ivsw],[data-ivg],[data-agup],[data-agdel],[data-act="newInv"],[data-act="editInv"],[data-act="saveInv"],[data-act="delInv"],[data-act="invBack"],[data-act="agAdd"],[data-act="waInv"],[data-act="copyLink"],[data-act="copyMsg"],[data-act="applyAll"],[data-act="copyYes"],[data-act="copyNone"]');
+ if(!t)return;const d=t.dataset,v=INVS.find(x=>x.id===S.inv);
+ if(d.inv){S.inv=+d.inv;S.invTab='resp';S.invF='';render();window.scrollTo({top:0});return;}
+ if(d.invtab){S.invTab=d.invtab;render();return;}
+ if(d.invf!==undefined){S.invF=d.invf;render();return;}
+ if(d.ivsw){const k=d.ivsw;if(k==='open')D.open=!D.open;else if(k==='unk')D.unk=!D.unk;else D.ask[k]=!D.ask[k];t.setAttribute('aria-checked',t.getAttribute('aria-checked')!=='true');return;}
+ if(d.ivg){invCollect();D.gender=d.ivg;drawInv();return;}
+ if(d.agup){invCollect();const i=+d.agup;[D.agenda[i-1],D.agenda[i]]=[D.agenda[i],D.agenda[i-1]];drawInv();return;}
+ if(d.agdel){invCollect();D.agenda.splice(+d.agdel,1);drawInv();return;}
+ if(d.apply){t.disabled=true;const id=+d.apply;const f=[...document.querySelectorAll(`[data-rf^="${id}:"]`)].filter(c=>c.checked).map(c=>c.dataset.rf.split(':')[1]);
+  try{await applyResp(id,f);await refresh();toast(f.length?'انضافت البيانات للشجرة':'تم');}catch(err){t.disabled=false;toast(errMsg(err),true);}return;}
+ if(d.dismiss){t.disabled=true;const r=RESP.find(x=>x.id===+d.dismiss);try{await applyResp(r.id,[]);if(r.photo_path)await SB.storage.from('photos').remove([r.photo_path]);await refresh();toast('تم التجاهل');}catch(err){t.disabled=false;toast(errMsg(err),true);}return;}
+ if(d.excl){const id=+d.excl;await setInvList(v,{exclude_ids:[...new Set([...(v.exclude_ids||[]),id])],include_ids:(v.include_ids||[]).filter(x=>x!==id)});return;}
+ if(d.unexcl){const id=+d.unexcl;await setInvList(v,{exclude_ids:(v.exclude_ids||[]).filter(x=>x!==id)});return;}
+ if(d.incl){const id=+d.incl;await setInvList(v,{include_ids:[...new Set([...(v.include_ids||[]),id])],exclude_ids:(v.exclude_ids||[]).filter(x=>x!==id)});toast('أُضيف '+by[id].n+' للدعوة');return;}
+ const a=d.act;
+ if(a==='newInv'){invDrawer(null);return;}
+ if(a==='editInv'){invDrawer(v);return;}
+ if(a==='saveInv'){saveInv();return;}
+ if(a==='delInv'){if(!D.arm){D.arm=true;invCollect();drawInv();return;}const {error}=await SB.from('invitations').delete().eq('id',D.edit);if(error){toast(errMsg(error),true);return;}closeDrawer();S.inv=null;await refresh();toast('حُذفت الدعوة');return;}
+ if(a==='invBack'){S.inv=null;render();return;}
+ if(a==='agAdd'){invCollect();D.agenda.push({time:'',title:'',desc:''});drawInv();const rs=drawer.querySelectorAll('.agr');rs[rs.length-1].querySelector('[data-ag=time]').focus();return;}
+ if(a==='waInv'){window.open('https://wa.me/?text='+encodeURIComponent(waText(v)),'_blank','noopener');return;}
+ if(a==='copyLink'){copyText(invLink(v),'تم نسخ الرابط');return;}
+ if(a==='copyMsg'){copyText(waText(v),'تم نسخ الرسالة، الصقها في واتساب');return;}
+ if(a==='applyAll'){t.disabled=true;const pend=RESP.filter(r=>r.invitation_id===v.id&&r.data_state==='pending');let ok=0;for(const r of pend){try{await applyResp(r.id,['phone','birth','photo']);ok++;}catch(_){}}await refresh();toast(`اعتُمدت بيانات ${ok} من ${pend.length}`);return;}
+ if(a==='copyYes'){const l=RESP.filter(r=>r.invitation_id===v.id&&r.status==='yes').map((r,i)=>(i+1)+'. '+(by[r.person_id]?joinN(anc(r.person_id).slice(0,3)):''));copyText(l.join('\n'),'تم نسخ أسماء الحاضرين');return;}
+ if(a==='copyNone'){const dd=INVD[v.slug];const rset=new Set(RESP.filter(r=>r.invitation_id===v.id).map(r=>r.person_id));const l=dd.people.filter(p=>!rset.has(p.id)).map((p,i)=>(i+1)+'. '+p.line.split(' بن ').slice(0,3).join(' بن '));copyText(l.join('\n'),'تم نسخ الأسماء');return;}
 });
 
 /* ================= events & photos ================= */
