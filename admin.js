@@ -1179,9 +1179,9 @@ function vTours(){
  if(S.tour==='new')return vTourForm(null);
  if(S.tour){const t=TOURS.find(x=>x.id===S.tour);if(t)return S.tourEdit?vTourForm(t):vTour(t);S.tour=null;}
  const list=TOURS.filter(t=>!t.archived);
- return `<div class="ph"><div><h1>البطولات</h1><p>أنشئ أي بطولة (بلوت، كيرم، بلايستيشن…) والعائلة تسجّل فيها بأسمائها من الشجرة</p></div>
+ return `<div class="ph"><div><h1>البطولات</h1><p>أنشئ أي بطولة والعائلة تسجّل فيها بأسمائها من الشجرة</p></div>
   <div class="sp"><button class="btn p" type="button" data-act="newTour">${ic('plus')}بطولة جديدة</button></div></div>
-  ${list.length?`<div class="invs">${list.map(t=>`<button type="button" class="card invc" data-tour="${t.id}"><div class="ih"><span class="ic" style="background:var(--olivebg)">${ic('trophy',20,'#3E4A24')}</span><span><b>${esc(t.title)}</b><small>${esc(t.game)} · ${t.team_size===1?'فردي':'فرق من لاعبَين'} · ${esc(tWhen(t))}</small></span><span class="badge ${TST[t.status][1]}">${TST[t.status][0]}</span></div></button>`).join('')}</div>`
+  ${list.length?`<div class="invs">${list.map(t=>`<button type="button" class="card invc" data-tour="${t.id}"><div class="ih"><span class="ic" style="background:var(--olivebg)">${ic('trophy',20,'#3E4A24')}</span><span><b>${esc(t.title)}</b><small>${t.team_size===1?'فردي':'فرق من لاعبَين'} · ${esc(tWhen(t))}</small></span><span class="badge ${TST[t.status][1]}">${TST[t.status][0]}</span></div></button>`).join('')}</div>`
   :`<section class="card start"><h2>أول بطولة</h2><p class="muted" style="margin:0;line-height:1.8">أنشئ البطولة، اكتب قوانينها، وافتح التسجيل. ترسل الرابط في قروب العائلة، وكل واحد يسجّل باسمه من الشجرة، وأنت تقبل الطلبات من هنا.</p><button class="btn p" type="button" data-act="newTour">${ic('plus')}بطولة جديدة</button></section>`}`;
 }
 function vTourForm(t){
@@ -1189,15 +1189,14 @@ function vTourForm(t){
  const ts=t?t.team_size:(S.tsz||2);
  return `<div class="ph"><div><button class="lnk" type="button" data-act="${t?'tourView':'tourBack'}" style="margin:0 0 6px;padding:0">‹ ${t?'رجوع للبطولة':'كل البطولات'}</button><h1>${t?'تعديل البطولة':'بطولة جديدة'}</h1><p>تقدر تعدّل كل شيء لاحقًا، والبطولة ما تظهر للعائلة حتى تفتح التسجيل</p></div></div>
  <section class="card" style="padding:20px;display:flex;flex-direction:column;gap:16px;max-width:760px">
-  <div class="row2"><div class="f"><label for="tt">اسم البطولة</label><input class="inp" id="tt" maxlength="80" value="${esc(t?t.title:'')}" placeholder="مثل: بطولة السليم للبلوت"></div>
-   <div class="f"><label for="tg">اللعبة</label><input class="inp" id="tg" maxlength="40" value="${esc(t?t.game:'بلوت')}" list="tgl"><datalist id="tgl"><option value="بلوت"><option value="كيرم"><option value="بلايستيشن"><option value="شطرنج"><option value="بادل"><option value="كرة قدم"></datalist></div></div>
+  <div class="f"><label for="tt">اسم البطولة</label><input class="inp" id="tt" maxlength="80" value="${esc(t?t.title:'')}" placeholder="مثل: بطولة السليم للبلوت"></div>
   <div class="f"><span class="lb" id="tszL">نوع التسجيل</span><div class="tabs" role="radiogroup" aria-labelledby="tszL" style="width:100%"><button type="button" class="tab ${ts===2?'on':''}" role="radio" aria-checked="${ts===2}" data-tsz="2" style="flex:1">فرق من لاعبَين</button><button type="button" class="tab ${ts===1?'on':''}" role="radio" aria-checked="${ts===1}" data-tsz="1" style="flex:1">فردي</button></div>
    ${t&&(TE[t.id]||[]).some(e=>e.status!=='rejected')?'<span class="sub">فيه تسجيلات في البطولة، غيّر نوعها بحذر.</span>':''}</div>
   <div class="row2"><div class="f"><label for="td">تاريخ البطولة <span class="sub">(اختياري)</span></label><input class="inp" id="td" type="date" value="${lp?lp.date:''}"></div>
    <div class="f"><label for="tm">الوقت</label><input class="inp" id="tm" type="time" value="${lp?lp.time:'20:00'}"></div></div>
   <div class="row2"><div class="f"><label for="tp">المكان <span class="sub">(اختياري)</span></label><input class="inp" id="tp" maxlength="120" value="${esc(t&&t.place||'')}" placeholder="مثل: استراحة العائلة"></div>
    <div class="f"><label for="tl">آخر يوم للتسجيل <span class="sub">(اختياري)</span></label><input class="inp" id="tl" type="date" value="${dl}"></div></div>
-  <div class="f"><label for="tr">نظام المباريات <span class="sub">(يظهر بجانب اسم اللعبة)</span></label><input class="inp" id="tr" maxlength="60" value="${esc(t?t.match_rule||'':'خروج المغلوب · صكّة واحدة')}"></div>
+  <div class="f"><label for="tr">نظام المباريات <span class="sub">(اختياري)</span></label><input class="inp" id="tr" maxlength="60" value="${esc(t?t.match_rule||'':'خروج المغلوب · صكّة واحدة')}"></div>
   <div class="f"><label for="tru">قوانين البطولة</label><textarea class="inp" id="tru" maxlength="3000" rows="7" style="min-height:160px;line-height:1.9" placeholder="اكتب كل قانون في سطر">${esc(t&&t.rules||'')}</textarea><span class="sub">كل سطر يظهر في صفحة البطولة كبند مستقل.</span></div>
   <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center"><button class="btn p" type="button" data-act="saveTour">${ic('check')}${t?'حفظ التعديلات':'إنشاء البطولة'}</button>
    ${t?`<button class="btn no" type="button" data-act="archTour" style="margin-inline-start:auto">${ic('trash',16)}${S.tourArm?'متأكد؟ اضغط مرة ثانية للحذف':'حذف البطولة'}</button>`:''}</div>
@@ -1206,7 +1205,7 @@ function vTourForm(t){
 function tourCollect(){
  const g=id=>(document.getElementById(id)||{}).value||'';
  const date=g('td'),time=g('tm')||'20:00',dl=g('tl');
- return {title:g('tt').trim(),game:g('tg').trim(),team_size:S.tsz||2,place:g('tp').trim()||null,match_rule:g('tr').trim()||null,rules:g('tru').trim()||null,
+ return {title:g('tt').trim(),team_size:S.tsz||2,place:g('tp').trim()||null,match_rule:g('tr').trim()||null,rules:g('tru').trim()||null,
   starts_at:date?atRiyadh(date,time).toISOString():null,reg_deadline:dl?atRiyadh(dl,'23:59').toISOString():null};
 }
 function vTour(t){
@@ -1230,7 +1229,7 @@ function vTour(t){
    `<div class="li" style="border-bottom:0;flex-wrap:wrap"><input class="inp" id="pairName" maxlength="30" placeholder="اسم الفريق (اختياري)" style="max-width:240px"><button class="btn p" type="button" data-act="pairTour" ${sel.length===2?'':'disabled'}>${ic('plus')}اجمعهم في فريق${sel.length?' ('+sel.length+' محدد)':''}</button><span class="sub">يتأكد الفريق مباشرة ويظهر في الصفحة</span></div>`:'<div class="empty">لا يوجد أحد يبحث عن شريك.</div>'}</div></section>`;}
  else body=`<section class="card"><div class="list">${rej.length?rej.map(e=>row(e,`<button class="btn sm ok" type="button" data-tok="${e.id}">${ic('check',15)}قبول</button>`)).join(''):'<div class="empty">لا يوجد مرفوضون.</div>'}</div></section>`;
  const tabs=[['pend','بانتظار المراجعة',pend.length],['ok',two?'الفرق المؤكدة':'المؤكدون',ok.length],...(two?[['solo','بدون شريك',solo.length]]:[]),['rej','المرفوضة',rej.length]];
- return `<div class="ph"><div><button class="lnk" type="button" data-act="tourBack" style="margin:0 0 6px;padding:0">‹ كل البطولات</button><h1>${esc(t.title)}</h1><p>${esc(t.game)} · ${two?'فرق من لاعبَين':'فردي'} · ${esc(tWhen(t))}${t.place?' · '+esc(t.place):''}</p></div>
+ return `<div class="ph"><div><button class="lnk" type="button" data-act="tourBack" style="margin:0 0 6px;padding:0">‹ كل البطولات</button><h1>${esc(t.title)}</h1><p>${two?'فرق من لاعبَين':'فردي'} · ${esc(tWhen(t))}${t.place?' · '+esc(t.place):''}</p></div>
   <div class="sp"><button class="btn" type="button" data-act="editTour">${ic('edit')}تعديل البطولة</button><a class="btn" href="${esc(tourLink(t))}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">${ic('eye')}معاينة الصفحة</a></div></div>
   <section class="card share"><div class="tx"><b>${TST[t.status][0]}${t.reg_deadline?' · آخر يوم للتسجيل '+esc(fmtD({day:'numeric',month:'long'}).format(new Date(t.reg_deadline))):''}</b><div class="lk" dir="ltr">${esc(tourLink(t))}</div></div>
    <div class="tabs" role="radiogroup" aria-label="حالة البطولة">${['draft','open','closed','done'].map(k=>`<button type="button" class="tab ${t.status===k?'on':''}" role="radio" aria-checked="${t.status===k}" data-tstat="${k}">${{draft:'مسودة',open:'مفتوح',closed:'مغلق',done:'منتهية'}[k]}</button>`).join('')}</div>
@@ -1263,7 +1262,7 @@ document.addEventListener('click',async e=>{
  if(!x)return;const d=x.dataset,t=TOURS.find(v=>v.id===S.tour);
  if(d.tour){S.tour=+d.tour;S.tourEdit=false;S.tourTab=null;S.tsel=[];render();window.scrollTo({top:0});return;}
  if(d.ttab){S.tourTab=d.ttab;render();return;}
- if(d.tsz){const v=tourCollect();S.tsz=+d.tsz;render();const set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};set('tt',v.title);set('tg',v.game);set('tp',v.place||'');set('tr',v.match_rule||'');set('tru',v.rules||'');return;}
+ if(d.tsz){const v=tourCollect();S.tsz=+d.tsz;render();const set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};set('tt',v.title);set('tp',v.place||'');set('tr',v.match_rule||'');set('tru',v.rules||'');return;}
  if(d.act==='newTour'){S.tour='new';S.tsz=2;S.tourArm=false;render();window.scrollTo({top:0});document.getElementById('tt').focus();return;}
  if(d.act==='tourBack'){S.tour=null;S.tourEdit=false;render();return;}
  if(d.act==='tourView'){S.tourEdit=false;S.tourArm=false;render();return;}
@@ -1271,14 +1270,13 @@ document.addEventListener('click',async e=>{
  if(d.act==='saveTour'){
   const v=tourCollect();
   if(v.title.length<2){toast('اكتب اسم البطولة',true);document.getElementById('tt').focus();return;}
-  if(!v.game){toast('اكتب اسم اللعبة',true);document.getElementById('tg').focus();return;}
   x.disabled=true;
   const r=S.tour==='new'?await SB.from('tournaments').insert(Object.assign(v,{created_by_name:myName()})).select().single():await SB.from('tournaments').update(Object.assign(v,{updated_at:new Date().toISOString()})).eq('id',S.tour).select().single();
   x.disabled=false;
   if(r.error){toast(errMsg(r.error),true);return;}
   const i=TOURS.findIndex(o=>o.id===r.data.id);if(i>=0)TOURS[i]=r.data;else TOURS.unshift(r.data);
   const was=S.tour==='new';S.tour=r.data.id;S.tourEdit=false;render();window.scrollTo({top:0});toast(was?'أُنشئت البطولة كمسودة. جرّبها ثم افتح التسجيل':'تم حفظ البطولة');return;}
- if(d.act==='archTour'){if(!S.tourArm){S.tourArm=true;const v=tourCollect();render();['tt','tg','tp','tr','tru'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.value=[v.title,v.game,v.place||'',v.match_rule||'',v.rules||''][i];});return;}
+ if(d.act==='archTour'){if(!S.tourArm){S.tourArm=true;const v=tourCollect();render();['tt','tp','tr','tru'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.value=[v.title,v.place||'',v.match_rule||'',v.rules||''][i];});return;}
   const {error}=await SB.from('tournaments').update({archived:true,updated_at:new Date().toISOString()}).eq('id',S.tour);if(error){toast(errMsg(error),true);return;}
   t.archived=true;S.tour=null;S.tourEdit=false;S.tourArm=false;render();toast('حُذفت البطولة');return;}
  if(d.tstat){if(d.tstat===t.status)return;const {error}=await SB.from('tournaments').update({status:d.tstat,updated_at:new Date().toISOString()}).eq('id',t.id);if(error){toast(errMsg(error),true);return;}t.status=d.tstat;render();toast({draft:'صارت مسودة: مخفية عن العائلة',open:'فُتح التسجيل وصارت البطولة ظاهرة للعائلة',closed:'أُغلق التسجيل',done:'البطولة منتهية'}[d.tstat]);return;}
