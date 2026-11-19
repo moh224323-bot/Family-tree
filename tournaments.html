@@ -197,7 +197,7 @@ function hub(){
 }
 function cardOf(t){
   const s=ST[t.status]||ST.open;
-  return `<a class="card tc" href="?t=${t.id}"><div class="top"><span class="ic">${TR}</span><span><b>${esc(t.title)}</b><span class="sub">${esc(t.game)} · ${t.team_size===1?'فردي':'فرق من لاعبَين'}</span></span></div>
+  return `<a class="card tc" href="?t=${t.id}"><div class="top"><span class="ic">${TR}</span><span><b>${esc(t.title)}</b><span class="sub">${t.team_size===1?'فردي':'فرق من لاعبَين'}</span></span></div>
    <div class="meta"><span class="badge ${s[1]}">${s[0]}</span><span>${t.starts_at?esc(D.full(new Date(t.starts_at))):'الموعد يُعلن قريبًا'}</span><span>${t.count} ${t.team_size===1?'مشارك':'تسجيل'}</span></div></a>`;
 }
 
@@ -264,7 +264,7 @@ function view(){
   const teams=E.filter(e=>e.kind==='team'), solos=E.filter(e=>e.kind==='solo');
   const players=teams.reduce((n,e)=>n+(e.p2?2:1),0)+solos.length;
   const dl=T.reg_deadline&&T.status==='open'?days(T.reg_deadline):null;
-  hero.innerHTML=`<div><div class="eyebrow">بطولات العائلة · ${esc(T.game)}</div><h1><em>${esc(T.title)}</em></h1><p>${T.team_size===2?'سجّل فريقك من لاعبَين من أبناء العائلة، أو سجّل وحدك ونرتّب لك شريكًا.':'سجّل باسمك من شجرة العائلة.'} يراجع المنظمون التسجيل ويتواصلون معك على جوالك.</p></div>
+  hero.innerHTML=`<div><div class="eyebrow">بطولات العائلة</div><h1><em>${esc(T.title)}</em></h1><p>${T.team_size===2?'سجّل فريقك من لاعبَين من أبناء العائلة، أو سجّل وحدك ونرتّب لك شريكًا.':'سجّل باسمك من شجرة العائلة.'} يراجع المنظمون التسجيل ويتواصلون معك على جوالك.</p></div>
    <div class="stats"><div class="stat"><b>${teams.length}</b><span>${T.team_size===2?'فريقًا مسجّلًا':'مشاركًا'}</span></div>${T.team_size===2?`<div class="stat"><b>${players}</b><span>لاعبًا</span></div><div class="stat"><b>${solos.length}</b><span>يبحثون عن شريك</span></div>`:''}${dl!==null&&dl>=0?`<div class="stat"><b>${dl}</b><span>${dl===1?'يوم':'أيام'} على إغلاق التسجيل</span></div>`:''}</div>`;
   const others=LIST.filter(x=>x.id!==T.id);
   app.innerHTML=`${T.status==='draft'?`<div class="draftbar">${TR}<span>هذه البطولة مسودة: لا يراها إلا المدير. افتحها للتسجيل من لوحة التحكم عندما تكون جاهزة.</span></div>`:''}
@@ -272,7 +272,7 @@ function view(){
     ${d?`<div class="dblock"><span class="wd">${esc(D.weekday(d))}</span><span class="dn">${esc(D.day(d))}</span><span class="mn">${esc(D.month(d))}</span><span class="hj">${esc(D.hijriShort(d))}</span></div>`:'<div class="dblock tbd">الموعد<br>يُعلن قريبًا</div>'}
     <div><span class="badge ${s[1]}">${s[0]}${T.status==='open'&&T.reg_deadline?' حتى '+esc(D.day(new Date(T.reg_deadline))+' '+D.month(new Date(T.reg_deadline))):''}</span>
      <h3>${esc(T.title)}</h3>
-     <div class="meta">${d?`<span>${IC.clock}${esc(D.time(d))}</span>`:''}${T.place?`<span>${IC.pin}${esc(T.place)}</span>`:''}<span>${TR.replace(/22/g,'16')}${esc(T.game)}${T.match_rule?' · '+esc(T.match_rule):''}</span></div></div>
+     <div class="meta">${d?`<span>${IC.clock}${esc(D.time(d))}</span>`:''}${T.place?`<span>${IC.pin}${esc(T.place)}</span>`:''}${T.match_rule?`<span>${TR.replace(/22/g,'16')}${esc(T.match_rule)}</span>`:''}</div></div>
     ${T.status==='open'?'<a class="btn g" href="#reg">سجّل الآن</a>':''}
    </section>
    <div class="grid"><div id="formBox">${form()}</div>${side()}</div>
