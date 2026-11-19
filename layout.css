@@ -122,11 +122,19 @@ body.prev-admin .hdr{top:36px}
 
 /* ================= responsive ================= */
 @media (max-width:1180px){.hdr .today{display:none}}
-@media (max-width:1020px){
+@media (max-width:1100px){
   .hdr .hsearch{min-width:0}
   .hdr .hsearch span,.hdr .hsearch kbd{display:none}
+  .hdr .nav a{padding:0 11px}
+}
+@media (max-width:1020px){
   .ftr .cols{grid-template-columns:1fr 1fr}
   .ftr .brandcol{grid-column:1/-1}
+}
+@media (max-width:880px){
+  .hdr .nav a{padding:0 9px;gap:0}
+  .hdr .nav a svg{display:none}
+  .hdr .hcta{padding:0 12px}
 }
 @media (max-width:760px){
   :root{--hh:62px}
