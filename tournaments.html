@@ -179,7 +179,7 @@ let site, by={}, LIST=[], T=null, E=[], ELIG=new Set();
 const tid=+(new URLSearchParams(location.search).get('t'))||null;
 try{
   site=await window.FT.boot();
-  const [tr,ls]=await Promise.all([SB.rpc('get_public_tree'),SB.rpc('list_tournaments')]);
+  const [tr,ls]=await Promise.all([SB.rpc('get_family_tree'),SB.rpc('list_tournaments')]);
   if(tr.error) throw tr.error; if(ls.error) throw ls.error;
   (tr.data||[]).forEach(r=>by[r.id]={id:r.id,n:r.first_name,p:r.father_id||0});
   LIST=ls.data||[];
