@@ -9,6 +9,7 @@ let SUPS=[], REQS=[], LOG=[];
 let EVS=[], ALB=[], PH={};
 let MAR=[];               // marriages (wives)
 let INVS=[],RESP=[],INVD={}; // invitations, their responses, cached invitee lists
+let TOURS=[];              // tournaments (admin only)
 let SET={};
 const S={view:'overview',q:'',branch:'all',genF:'all',status:'all',limit:25,rqTab:'all',fresh:null,pvDev:'d',pvViewer:'visitor'};
 
@@ -69,7 +70,8 @@ const I={
  trash:'<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/>',
  cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
  img:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
- star:'<path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/>'
+ star:'<path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/>',
+ trophy:'<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>'
 };
 const ic=(n,s=18,c='currentColor')=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
 const avatar=(id,size)=>`<span class="av" style="background:${colorOf(id)}${size?`;width:${size}px;height:${size}px`:''}">${by[id]&&by[id].photo?`<img src="${esc(photoUrl(by[id].photo))}" alt="" loading="lazy">`:esc(by[id]?by[id].n[0]:'؟')}</span>`;
@@ -102,10 +104,11 @@ async function loadAll(){
   SB.from('photos').select('*').order('created_at'),
   SB.from('marriages').select('*').order('husband_id').order('wife_order').order('id'),
   isAdmin()?SB.from('invitations').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]}),
-  isAdmin()?SB.from('invitation_responses').select('*').order('updated_at',{ascending:false}):Promise.resolve({data:[]})
+  isAdmin()?SB.from('invitation_responses').select('*').order('updated_at',{ascending:false}):Promise.resolve({data:[]}),
+  isAdmin()?SB.from('tournaments').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]})
  ];
- const [pp,tr,rq,lg,st,sf,scp,ev,al,ph,mr,iv,ir]=await Promise.all(q);
- INVS=iv.error?[]:(iv.data||[]);RESP=ir.error?[]:(ir.data||[]);
+ const [pp,tr,rq,lg,st,sf,scp,ev,al,ph,mr,iv,ir,tu]=await Promise.all(q);
+ INVS=iv.error?[]:(iv.data||[]);RESP=ir.error?[]:(ir.data||[]);TOURS=tu.error?[]:(tu.data||[]);
  for(const r of [pp,tr,rq,lg,st,sf,scp,ev,al,ph]) if(r.error) throw r.error;
  MAR=mr.error?[]:(mr.data||[]);
  EVS=ev.data||[];ALB=al.data||[];PH={};(ph.data||[]).forEach(p=>(PH[p.album_id]=PH[p.album_id]||[]).push(p));
@@ -130,7 +133,7 @@ async function refresh(){try{await loadAll();}catch(e){toast(errMsg(e),true);}re
 const visibleReqs=()=>REQS.filter(r=>{const t=r.father_id||r.target_id;return by[t]&&inScope(t);});
 function renderNav(){
  const admin=isAdmin();
- const items=[['overview','home','نظرة عامة'],['members','users','الأفراد'],['requests','inbox','الطلبات',visibleReqs().length],['events','cal','الفعاليات',EVS.filter(e=>evEnd(e)>=new Date()).length,'g'],['photos','img','الصور'],...(admin?[['invites','star','الدعوات',RESP.filter(r=>r.data_state==='pending').length],['site','globe','الموقع والنشر',SET.online===false?'متوقف':0],['sups','shield','المشرفون',SUPS.length,'g']]:[]),['log','clock','سجل التعديلات'],...(admin?[['settings','gear','الخصوصية والإعدادات']]:[])];
+ const items=[['overview','home','نظرة عامة'],['members','users','الأفراد'],['requests','inbox','الطلبات',visibleReqs().length],['events','cal','الفعاليات',EVS.filter(e=>evEnd(e)>=new Date()).length,'g'],['photos','img','الصور'],...(admin?[['invites','star','الدعوات',RESP.filter(r=>r.data_state==='pending').length],['tours','trophy','البطولات',TOURS.filter(t=>!t.archived&&t.status==='open').length,'g'],['site','globe','الموقع والنشر',SET.online===false?'متوقف':0],['sups','shield','المشرفون',SUPS.length,'g']]:[]),['log','clock','سجل التعديلات'],...(admin?[['settings','gear','الخصوصية والإعدادات']]:[])];
  const s=curSup();
  document.getElementById('side').innerHTML=items.map(([k,i,t,c,cl])=>`<button type="button" class="nav ${S.view===k?'on':''}" data-view="${k}">${ic(i)}<span>${t}</span>${c?`<span class="c ${cl||''}">${c}</span>`:''}</button>`).join('')+
  `<div class="sidefoot">${s?`<b>صلاحياتك</b>مشرف على ${esc(scopeNames(s))} (${scopeTotal(s)} فردًا). ${can('direct')?'إضافاتك تُنشر مباشرة.':'إضافاتك تُراجع من المدير قبل النشر.'}`:`<b>المدير العام</b>صلاحيات كاملة على ${P.length} فردًا${B.length?' و'+B.length+' فروع':''}.`}</div>`;
@@ -263,9 +266,9 @@ function vSettings(){
 
 function render(){
  if(!ME)return;
- if(!isAdmin()&&['sups','settings','site','invites'].includes(S.view))S.view='overview';
+ if(!isAdmin()&&['sups','settings','site','invites','tours'].includes(S.view))S.view='overview';
  renderNav();
- const v={invites:vInvites,site:vSite,events:vEvents,photos:vPhotos,overview:vOverview,members:vMembers,requests:vRequests,sups:vSups,log:vLog,settings:vSettings}[S.view]||vOverview;
+ const v={tours:vTours,invites:vInvites,site:vSite,events:vEvents,photos:vPhotos,overview:vOverview,members:vMembers,requests:vRequests,sups:vSups,log:vLog,settings:vSettings}[S.view]||vOverview;
  main.innerHTML=v();
  renderPill(); if(S.view==='site')setupPreview();
  bindMembers();
@@ -1029,7 +1032,7 @@ document.addEventListener('click',async e=>{
  const t=e.target.closest('[data-view],[data-act],[data-edit],[data-addchild],[data-ok],[data-no],[data-rqtab],[data-perm],[data-set],[data-rmsup],[data-father],[data-sc],[data-unsc],[data-addscope],[data-rmscope],[data-pp],[data-pvv],[data-pvd],[data-evph],[data-evedit],[data-alb],[data-cover],[data-cap],[data-delph],[data-host]');
  if(!t||fpv.contains(t))return;
  const d=t.dataset;
- if(d.view){S.view=d.view;S.album=null;S.albDel=false;render();window.scrollTo({top:0});return;}
+ if(d.view){S.view=d.view;S.album=null;S.albDel=false;S.tour=null;S.tourEdit=false;render();window.scrollTo({top:0});return;}
  if(d.evph){openEventPhotos(d.evph);return;}
  if(d.evedit){D={mode:'ev',edit:+d.evedit};drawEvent();drawer.classList.add('on');scrim.classList.add('on');return;}
  if(d.host){D.keep();D.host=+d.host;drawEvent();return;}
@@ -1161,5 +1164,136 @@ async function boot(){
 async function signOut(){await SB.auth.signOut();ME=null;gMode='in';loginForm();}
 document.getElementById('logout').onclick=signOut;
 SB.auth.onAuthStateChange((ev)=>{if(ev==='PASSWORD_RECOVERY')setTimeout(newPasswordForm,0);});
+/* ================= tournaments (any game; admin creates, family registers from the tree) ================= */
+const TST={draft:['مسودة','b-mute'],open:['التسجيل مفتوح','b-ok'],closed:['التسجيل مغلق','b-gold'],done:['منتهية','b-mute']};
+const tourLink=t=>location.origin+location.pathname.replace(/[^/]*$/,'')+'tournaments.html?t='+t.id;
+const TE={}; // entries cache per tournament id
+async function tourEntries(id,force){
+ if(!force&&TE[id])return TE[id];
+ const {data,error}=await SB.from('tournament_entries').select('*').eq('tournament_id',id).order('created_at');
+ if(error)throw error;TE[id]=data||[];return TE[id];
+}
+const pName=id=>by[id]?joinN(anc(id).slice(0,3)):'—';
+const tWhen=t=>t.starts_at?fmtD({weekday:'long',day:'numeric',month:'long'}).format(new Date(t.starts_at))+' · '+tOf(new Date(t.starts_at)):'الموعد لم يُحدد';
+function vTours(){
+ if(S.tour==='new')return vTourForm(null);
+ if(S.tour){const t=TOURS.find(x=>x.id===S.tour);if(t)return S.tourEdit?vTourForm(t):vTour(t);S.tour=null;}
+ const list=TOURS.filter(t=>!t.archived);
+ return `<div class="ph"><div><h1>البطولات</h1><p>أنشئ أي بطولة (بلوت، كيرم، بلايستيشن…) والعائلة تسجّل فيها بأسمائها من الشجرة</p></div>
+  <div class="sp"><button class="btn p" type="button" data-act="newTour">${ic('plus')}بطولة جديدة</button></div></div>
+  ${list.length?`<div class="invs">${list.map(t=>`<button type="button" class="card invc" data-tour="${t.id}"><div class="ih"><span class="ic" style="background:var(--olivebg)">${ic('trophy',20,'#3E4A24')}</span><span><b>${esc(t.title)}</b><small>${esc(t.game)} · ${t.team_size===1?'فردي':'فرق من لاعبَين'} · ${esc(tWhen(t))}</small></span><span class="badge ${TST[t.status][1]}">${TST[t.status][0]}</span></div></button>`).join('')}</div>`
+  :`<section class="card start"><h2>أول بطولة</h2><p class="muted" style="margin:0;line-height:1.8">أنشئ البطولة، اكتب قوانينها، وافتح التسجيل. ترسل الرابط في قروب العائلة، وكل واحد يسجّل باسمه من الشجرة، وأنت تقبل الطلبات من هنا.</p><button class="btn p" type="button" data-act="newTour">${ic('plus')}بطولة جديدة</button></section>`}`;
+}
+function vTourForm(t){
+ const lp=t&&t.starts_at?localParts(new Date(t.starts_at)):null, dl=t&&t.reg_deadline?keyOf(new Date(new Date(t.reg_deadline).getTime()-1000)):'';
+ const ts=t?t.team_size:(S.tsz||2);
+ return `<div class="ph"><div><button class="lnk" type="button" data-act="${t?'tourView':'tourBack'}" style="margin:0 0 6px;padding:0">‹ ${t?'رجوع للبطولة':'كل البطولات'}</button><h1>${t?'تعديل البطولة':'بطولة جديدة'}</h1><p>تقدر تعدّل كل شيء لاحقًا، والبطولة ما تظهر للعائلة حتى تفتح التسجيل</p></div></div>
+ <section class="card" style="padding:20px;display:flex;flex-direction:column;gap:16px;max-width:760px">
+  <div class="row2"><div class="f"><label for="tt">اسم البطولة</label><input class="inp" id="tt" maxlength="80" value="${esc(t?t.title:'')}" placeholder="مثل: بطولة السليم للبلوت"></div>
+   <div class="f"><label for="tg">اللعبة</label><input class="inp" id="tg" maxlength="40" value="${esc(t?t.game:'بلوت')}" list="tgl"><datalist id="tgl"><option value="بلوت"><option value="كيرم"><option value="بلايستيشن"><option value="شطرنج"><option value="بادل"><option value="كرة قدم"></datalist></div></div>
+  <div class="f"><span class="lb" id="tszL">نوع التسجيل</span><div class="tabs" role="radiogroup" aria-labelledby="tszL" style="width:100%"><button type="button" class="tab ${ts===2?'on':''}" role="radio" aria-checked="${ts===2}" data-tsz="2" style="flex:1">فرق من لاعبَين</button><button type="button" class="tab ${ts===1?'on':''}" role="radio" aria-checked="${ts===1}" data-tsz="1" style="flex:1">فردي</button></div>
+   ${t&&(TE[t.id]||[]).some(e=>e.status!=='rejected')?'<span class="sub">فيه تسجيلات في البطولة، غيّر نوعها بحذر.</span>':''}</div>
+  <div class="row2"><div class="f"><label for="td">تاريخ البطولة <span class="sub">(اختياري)</span></label><input class="inp" id="td" type="date" value="${lp?lp.date:''}"></div>
+   <div class="f"><label for="tm">الوقت</label><input class="inp" id="tm" type="time" value="${lp?lp.time:'20:00'}"></div></div>
+  <div class="row2"><div class="f"><label for="tp">المكان <span class="sub">(اختياري)</span></label><input class="inp" id="tp" maxlength="120" value="${esc(t&&t.place||'')}" placeholder="مثل: استراحة العائلة"></div>
+   <div class="f"><label for="tl">آخر يوم للتسجيل <span class="sub">(اختياري)</span></label><input class="inp" id="tl" type="date" value="${dl}"></div></div>
+  <div class="f"><label for="tr">نظام المباريات <span class="sub">(يظهر بجانب اسم اللعبة)</span></label><input class="inp" id="tr" maxlength="60" value="${esc(t?t.match_rule||'':'خروج المغلوب · صكّة واحدة')}"></div>
+  <div class="f"><label for="tru">قوانين البطولة</label><textarea class="inp" id="tru" maxlength="3000" rows="7" style="min-height:160px;line-height:1.9" placeholder="اكتب كل قانون في سطر">${esc(t&&t.rules||'')}</textarea><span class="sub">كل سطر يظهر في صفحة البطولة كبند مستقل.</span></div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center"><button class="btn p" type="button" data-act="saveTour">${ic('check')}${t?'حفظ التعديلات':'إنشاء البطولة'}</button>
+   ${t?`<button class="btn no" type="button" data-act="archTour" style="margin-inline-start:auto">${ic('trash',16)}${S.tourArm?'متأكد؟ اضغط مرة ثانية للحذف':'حذف البطولة'}</button>`:''}</div>
+ </section>`;
+}
+function tourCollect(){
+ const g=id=>(document.getElementById(id)||{}).value||'';
+ const date=g('td'),time=g('tm')||'20:00',dl=g('tl');
+ return {title:g('tt').trim(),game:g('tg').trim(),team_size:S.tsz||2,place:g('tp').trim()||null,match_rule:g('tr').trim()||null,rules:g('tru').trim()||null,
+  starts_at:date?atRiyadh(date,time).toISOString():null,reg_deadline:dl?atRiyadh(dl,'23:59').toISOString():null};
+}
+function vTour(t){
+ const es=TE[t.id];
+ if(!es){tourEntries(t.id).then(()=>{if(S.view==='tours'&&S.tour===t.id)render();}).catch(err=>toast(errMsg(err),true));}
+ const all=(es||[]).filter(e=>!(e.status==='rejected'&&e.note&&/^دُمج/.test(e.note)));
+ const two=t.team_size===2;
+ const pend=all.filter(e=>e.status==='pending'&&e.kind==='team'), ok=all.filter(e=>e.status==='approved'&&e.kind==='team');
+ const solo=all.filter(e=>e.kind==='solo'&&e.status!=='rejected'), rej=all.filter(e=>e.status==='rejected');
+ const tab=S.tourTab||(pend.length?'pend':'ok');
+ const who=e=>two&&e.kind==='team'?`${esc(e.team_name||'فريق بدون اسم')}`:esc(pName(e.p1_id));
+ const sub=e=>[two&&e.kind==='team'?esc(pName(e.p1_id))+' · '+esc(pName(e.p2_id)):'',`<span dir="ltr">${esc(e.phone)}</span>`+(e.phone2?` · <span dir="ltr">${esc(e.phone2)}</span>`:''),esc(ago(e.created_at))].filter(Boolean).join(' · ');
+ const row=(e,acts)=>`<div class="li">${avatar(e.p1_id)}<div class="tx"><b>${who(e)}</b><div class="sub">${sub(e)}</div></div>${acts}</div>`;
+ const decide=e=>`<span style="display:flex;gap:6px">${e.status!=='approved'?`<button class="btn sm ok" type="button" data-tok="${e.id}">${ic('check',15)}قبول</button>`:''}${e.status!=='rejected'?`<button class="btn sm no" type="button" data-tno="${e.id}">رفض</button>`:''}</span>`;
+ const wa=e=>`<a class="btn sm" href="https://wa.me/966${esc(e.phone.slice(1))}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">واتساب</a>`;
+ let body;
+ if(!es)body='<section class="card"><div class="empty">جارٍ التحميل…</div></section>';
+ else if(tab==='pend')body=`<section class="card"><div class="list">${pend.length?pend.map(e=>row(e,decide(e))).join(''):'<div class="empty">لا توجد طلبات جديدة.</div>'}</div></section>`;
+ else if(tab==='ok')body=`<section class="card"><div class="ch"><h2>${two?'الفرق المؤكدة':'المشاركون المؤكدون'} (${ok.length})</h2>${ok.length?'<button class="lnk" type="button" data-act="copyTeams">نسخ القائمة</button>':''}</div><div class="list">${ok.length?ok.map(e=>row(e,`<span style="display:flex;gap:6px">${wa(e)}<button class="btn sm no" type="button" data-tno="${e.id}">إلغاء</button></span>`)).join(''):'<div class="empty">لا يوجد مؤكدون بعد.</div>'}</div></section>`;
+ else if(tab==='solo'){const sel=S.tsel||[];body=`<section class="card"><div class="ch"><h2>بدون شريك (${solo.length})</h2><span class="sub" style="margin-inline-start:auto">اختر اثنين واجمعهم في فريق</span></div><div class="list">${solo.length?solo.map(e=>`<label class="li" style="cursor:pointer"><input type="checkbox" data-tsel="${e.id}" ${sel.includes(e.id)?'checked':''} style="width:20px;height:20px">${avatar(e.p1_id)}<div class="tx"><b>${esc(pName(e.p1_id))}</b><div class="sub"><span dir="ltr">${esc(e.phone)}</span> · ${esc(ago(e.created_at))}</div></div>${e.status!=='rejected'?`<button class="btn sm no" type="button" data-tno="${e.id}">رفض</button>`:''}</label>`).join('')+
+   `<div class="li" style="border-bottom:0;flex-wrap:wrap"><input class="inp" id="pairName" maxlength="30" placeholder="اسم الفريق (اختياري)" style="max-width:240px"><button class="btn p" type="button" data-act="pairTour" ${sel.length===2?'':'disabled'}>${ic('plus')}اجمعهم في فريق${sel.length?' ('+sel.length+' محدد)':''}</button><span class="sub">يتأكد الفريق مباشرة ويظهر في الصفحة</span></div>`:'<div class="empty">لا يوجد أحد يبحث عن شريك.</div>'}</div></section>`;}
+ else body=`<section class="card"><div class="list">${rej.length?rej.map(e=>row(e,`<button class="btn sm ok" type="button" data-tok="${e.id}">${ic('check',15)}قبول</button>`)).join(''):'<div class="empty">لا يوجد مرفوضون.</div>'}</div></section>`;
+ const tabs=[['pend','بانتظار المراجعة',pend.length],['ok',two?'الفرق المؤكدة':'المؤكدون',ok.length],...(two?[['solo','بدون شريك',solo.length]]:[]),['rej','المرفوضة',rej.length]];
+ return `<div class="ph"><div><button class="lnk" type="button" data-act="tourBack" style="margin:0 0 6px;padding:0">‹ كل البطولات</button><h1>${esc(t.title)}</h1><p>${esc(t.game)} · ${two?'فرق من لاعبَين':'فردي'} · ${esc(tWhen(t))}${t.place?' · '+esc(t.place):''}</p></div>
+  <div class="sp"><button class="btn" type="button" data-act="editTour">${ic('edit')}تعديل البطولة</button><a class="btn" href="${esc(tourLink(t))}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">${ic('eye')}معاينة الصفحة</a></div></div>
+  <section class="card share"><div class="tx"><b>${TST[t.status][0]}${t.reg_deadline?' · آخر يوم للتسجيل '+esc(fmtD({day:'numeric',month:'long'}).format(new Date(t.reg_deadline))):''}</b><div class="lk" dir="ltr">${esc(tourLink(t))}</div></div>
+   <div class="tabs" role="radiogroup" aria-label="حالة البطولة">${['draft','open','closed','done'].map(k=>`<button type="button" class="tab ${t.status===k?'on':''}" role="radio" aria-checked="${t.status===k}" data-tstat="${k}">${{draft:'مسودة',open:'مفتوح',closed:'مغلق',done:'منتهية'}[k]}</button>`).join('')}</div>
+   <div class="sacts"><button class="btn p" type="button" data-act="waTour">إرسال في واتساب</button><button class="btn" type="button" data-act="copyTour">نسخ الرابط</button></div></section>
+  ${t.status==='draft'?`<div class="note" style="background:var(--goldbg);color:#5E4716;margin-top:12px">${ic('info',18,'#8A6A26')}<span>البطولة مسودة: ما يشوفها إلا أنت. جرّب التسجيل من «معاينة الصفحة»، وإذا جهزت اضغط «مفتوح».</span></div>`:''}
+  <div class="kpis" style="margin-top:16px">
+   <div class="card kpi"><span class="l">${two?'فرق مؤكدة':'مشاركون مؤكدون'}</span><span class="v" style="color:var(--olive)">${es?ok.length:'…'}</span></div>
+   <div class="card kpi"><span class="l">بانتظار المراجعة</span><span class="v" style="color:#8A6A26">${es?pend.length:'…'}</span></div>
+   ${two?`<div class="card kpi"><span class="l">يبحثون عن شريك</span><span class="v">${es?solo.length:'…'}</span></div>`:''}
+   <div class="card kpi"><span class="l">إجمالي اللاعبين</span><span class="v">${es?ok.concat(pend).reduce((n,e)=>n+(e.p2_id?2:1),0)+solo.length:'…'}</span></div></div>
+  <div class="tabs" style="margin-bottom:14px">${tabs.map(([k,x,n])=>`<button type="button" class="tab ${tab===k?'on':''}" data-ttab="${k}">${x} (${n})</button>`).join('')}</div>
+  ${body}`;
+}
+function tourMsg(t){
+ let m=`السلام عليكم ورحمة الله وبركاته\n\nفتحنا التسجيل في «${t.title}»`;
+ if(t.starts_at){const d=new Date(t.starts_at);m+=`\n\n🗓 ${fmtD({weekday:'long',day:'numeric',month:'long'}).format(d)} (${hDate(d)})\n⏰ ${tOf(d)}`;}
+ if(t.place)m+=`\n📍 ${t.place}`;
+ m+=`\n\n${t.team_size===2?'سجّل فريقك أو سجّل وحدك ونرتّب لك شريكًا':'سجّل باسمك'} من الرابط:\n${tourLink(t)}`;
+ if(t.reg_deadline)m+=`\n\nآخر يوم للتسجيل: ${fmtD({weekday:'long',day:'numeric',month:'long'}).format(new Date(t.reg_deadline))}`;
+ return m;
+}
+async function tourSet(e,patch,msg){
+ const {error}=await SB.from('tournament_entries').update(Object.assign({decided_at:new Date().toISOString(),decided_by:myName()},patch)).eq('id',e.id);
+ if(error){toast(errMsg(error),true);return;}Object.assign(e,patch);render();toast(msg);
+}
+document.addEventListener('change',e=>{const c=e.target.closest('[data-tsel]');if(!c||!ME)return;const id=+c.dataset.tsel;let s=S.tsel||[];s=c.checked?[...s.filter(x=>x!==id),id].slice(-2):s.filter(x=>x!==id);S.tsel=s;const n=document.getElementById('pairName'),v=n?n.value:'';render();const n2=document.getElementById('pairName');if(n2)n2.value=v;});
+document.addEventListener('click',async e=>{
+ if(!ME||!isAdmin())return;
+ const x=e.target.closest('[data-tour],[data-ttab],[data-tstat],[data-tok],[data-tno],[data-tsz],[data-act="newTour"],[data-act="tourBack"],[data-act="tourView"],[data-act="editTour"],[data-act="saveTour"],[data-act="archTour"],[data-act="waTour"],[data-act="copyTour"],[data-act="copyTeams"],[data-act="pairTour"]');
+ if(!x)return;const d=x.dataset,t=TOURS.find(v=>v.id===S.tour);
+ if(d.tour){S.tour=+d.tour;S.tourEdit=false;S.tourTab=null;S.tsel=[];render();window.scrollTo({top:0});return;}
+ if(d.ttab){S.tourTab=d.ttab;render();return;}
+ if(d.tsz){const v=tourCollect();S.tsz=+d.tsz;render();const set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};set('tt',v.title);set('tg',v.game);set('tp',v.place||'');set('tr',v.match_rule||'');set('tru',v.rules||'');return;}
+ if(d.act==='newTour'){S.tour='new';S.tsz=2;S.tourArm=false;render();window.scrollTo({top:0});document.getElementById('tt').focus();return;}
+ if(d.act==='tourBack'){S.tour=null;S.tourEdit=false;render();return;}
+ if(d.act==='tourView'){S.tourEdit=false;S.tourArm=false;render();return;}
+ if(d.act==='editTour'){S.tourEdit=true;S.tsz=t.team_size;S.tourArm=false;render();window.scrollTo({top:0});return;}
+ if(d.act==='saveTour'){
+  const v=tourCollect();
+  if(v.title.length<2){toast('اكتب اسم البطولة',true);document.getElementById('tt').focus();return;}
+  if(!v.game){toast('اكتب اسم اللعبة',true);document.getElementById('tg').focus();return;}
+  x.disabled=true;
+  const r=S.tour==='new'?await SB.from('tournaments').insert(Object.assign(v,{created_by_name:myName()})).select().single():await SB.from('tournaments').update(Object.assign(v,{updated_at:new Date().toISOString()})).eq('id',S.tour).select().single();
+  x.disabled=false;
+  if(r.error){toast(errMsg(r.error),true);return;}
+  const i=TOURS.findIndex(o=>o.id===r.data.id);if(i>=0)TOURS[i]=r.data;else TOURS.unshift(r.data);
+  const was=S.tour==='new';S.tour=r.data.id;S.tourEdit=false;render();window.scrollTo({top:0});toast(was?'أُنشئت البطولة كمسودة. جرّبها ثم افتح التسجيل':'تم حفظ البطولة');return;}
+ if(d.act==='archTour'){if(!S.tourArm){S.tourArm=true;const v=tourCollect();render();['tt','tg','tp','tr','tru'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.value=[v.title,v.game,v.place||'',v.match_rule||'',v.rules||''][i];});return;}
+  const {error}=await SB.from('tournaments').update({archived:true,updated_at:new Date().toISOString()}).eq('id',S.tour);if(error){toast(errMsg(error),true);return;}
+  t.archived=true;S.tour=null;S.tourEdit=false;S.tourArm=false;render();toast('حُذفت البطولة');return;}
+ if(d.tstat){if(d.tstat===t.status)return;const {error}=await SB.from('tournaments').update({status:d.tstat,updated_at:new Date().toISOString()}).eq('id',t.id);if(error){toast(errMsg(error),true);return;}t.status=d.tstat;render();toast({draft:'صارت مسودة: مخفية عن العائلة',open:'فُتح التسجيل وصارت البطولة ظاهرة للعائلة',closed:'أُغلق التسجيل',done:'البطولة منتهية'}[d.tstat]);return;}
+ if(d.tok){const en=(TE[S.tour]||[]).find(v=>v.id===+d.tok);if(en)await tourSet(en,{status:'approved'},'تم القبول');return;}
+ if(d.tno){e.preventDefault();const en=(TE[S.tour]||[]).find(v=>v.id===+d.tno);if(en)await tourSet(en,{status:'rejected'},'تم الرفض');return;}
+ if(d.act==='pairTour'){const s=S.tsel||[];if(s.length!==2)return;x.disabled=true;const n=document.getElementById('pairName');
+  const {error}=await SB.rpc('tournament_pair',{p_a:s[0],p_b:s[1],p_team:n?n.value:''});
+  if(error){x.disabled=false;toast(errMsg(error),true);return;}
+  S.tsel=[];await tourEntries(S.tour,true);S.tourTab='ok';render();toast('تكوّن الفريق وتأكد');return;}
+ if(d.act==='waTour'){window.open('https://wa.me/?text='+encodeURIComponent(tourMsg(t)),'_blank','noopener');return;}
+ if(d.act==='copyTour'){try{await navigator.clipboard.writeText(tourLink(t));toast('نُسخ الرابط');}catch(_){toast('ما قدرنا ننسخ، انسخ الرابط يدويًا',true);}return;}
+ if(d.act==='copyTeams'){const ok=(TE[t.id]||[]).filter(v=>v.status==='approved'&&v.kind==='team');
+  const txt=ok.map((v,i)=>`${i+1}. `+(t.team_size===2?`${v.team_name?v.team_name+': ':''}${pName(v.p1_id)} و${pName(v.p2_id)}`:pName(v.p1_id))).join('\n');
+  try{await navigator.clipboard.writeText(txt);toast('نُسخت القائمة');}catch(_){toast('ما قدرنا ننسخ',true);}return;}
+});
+
 boot();
 })();

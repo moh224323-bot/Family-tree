@@ -10,19 +10,21 @@ create table if not exists public.tournaments(
   match_rule text check (char_length(match_rule) <= 60),
   rules text check (char_length(rules) <= 3000),
   status text not null default 'draft' check (status in ('draft','open','closed','done')),
+  archived boolean not null default false,  -- "delete" from the admin panel = archive (hidden from everyone)
   created_by_name text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 create table if not exists public.tournament_entries(
   id bigint generated always as identity primary key,
-  tournament_id bigint not null references public.tournaments(id) on delete cascade,
+  tournament_id bigint not null references public.tournaments(id),
   kind text not null check (kind in ('team','solo')),  -- solo = registered alone in a 2-player tournament, waiting for a partner
-  p1_id bigint not null references public.persons(id) on delete cascade,
-  p2_id bigint references public.persons(id) on delete set null,
+  p1_id bigint not null references public.persons(id),
+  p2_id bigint references public.persons(id),
   team_name text check (char_length(team_name) <= 30),
   phone text not null,
   phone2 text,
+  note text,
   status text not null default 'pending' check (status in ('pending','approved','rejected')),
   created_at timestamptz not null default now(),
   decided_at timestamptz,
@@ -33,14 +35,12 @@ alter table public.tournaments enable row level security;
 alter table public.tournament_entries enable row level security;
 
 create policy tour_read on public.tournaments for select to anon, authenticated
-  using (private.is_staff() or (status <> 'draft' and private.site_visible()));
+  using (private.is_admin() or (status <> 'draft' and not archived and private.site_visible()));
 create policy tour_insert on public.tournaments for insert to authenticated with check (private.is_admin());
 create policy tour_update on public.tournaments for update to authenticated using (private.is_admin()) with check (private.is_admin());
-create policy tour_delete on public.tournaments for delete to authenticated using (private.is_admin());
 -- entries hold phone numbers: only the admin reads them directly; the public goes through get_tournament()
 create policy tent_read on public.tournament_entries for select to authenticated using (private.is_admin());
 create policy tent_update on public.tournament_entries for update to authenticated using (private.is_admin()) with check (private.is_admin());
-create policy tent_delete on public.tournament_entries for delete to authenticated using (private.is_admin());
 
 -- who can play: living men who are public in the tree
 create or replace function private.tour_eligible(p bigint) returns boolean
@@ -53,20 +53,20 @@ $$;
 create or replace function public.list_tournaments()
 returns jsonb language sql stable security definer set search_path = '' as $$
   select case when private.site_visible() then coalesce(jsonb_agg(jsonb_build_object(
-    'id',t.id,'title',t.title,'game',t.game,'team_size',t.team_size,'status',t.status,'starts_at',t.starts_at,'reg_deadline',t.reg_deadline,
+    'id',t.id,'title',t.title,'game',t.game,'team_size',t.team_size,'status',t.status,'starts_at',t.starts_at,'place',t.place,'reg_deadline',t.reg_deadline,
     'count',(select count(*) from public.tournament_entries e where e.tournament_id = t.id and e.status <> 'rejected'))
-    order by t.id desc), '[]'::jsonb) end
-  from public.tournaments t where private.is_staff() or t.status <> 'draft'
+    order by (t.status = 'open') desc, t.id desc), '[]'::jsonb) end
+  from public.tournaments t where not t.archived and (private.is_admin() or t.status <> 'draft')
 $$;
 
 -- one tournament (by id, or the newest visible one), entries WITHOUT phone numbers, and who is eligible
 create or replace function public.get_tournament(p_id bigint default null)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
-declare t public.tournaments; staff boolean := private.is_staff();
+declare t public.tournaments; adm boolean := private.is_admin();
 begin
   if not private.site_visible() then return null; end if;
   select * into t from public.tournaments x
-   where (staff or x.status <> 'draft') and (p_id is null or x.id = p_id)
+   where not x.archived and (adm or x.status <> 'draft') and (p_id is null or x.id = p_id)
    order by (x.status = 'open') desc, x.id desc limit 1;
   if t.id is null then return null; end if;
   return jsonb_build_object(
@@ -82,9 +82,9 @@ returns jsonb language plpgsql security definer set search_path = '' as $$
 declare t public.tournaments; ph text; tn text; new_id bigint; k text;
 begin
   if not private.site_visible() then raise exception 'الموقع متوقف حاليًا'; end if;
-  select * into t from public.tournaments x where x.id = p_tid for update;
-  if t.id is null or (t.status = 'draft' and not private.is_staff()) then raise exception 'البطولة غير موجودة'; end if;
-  if t.status <> 'open' and not (t.status = 'draft' and private.is_staff()) then raise exception 'التسجيل مغلق'; end if;
+  select * into t from public.tournaments x where x.id = p_tid and not x.archived for update;
+  if t.id is null or (t.status = 'draft' and not private.is_admin()) then raise exception 'البطولة غير موجودة'; end if;
+  if t.status <> 'open' and not (t.status = 'draft' and private.is_admin()) then raise exception 'التسجيل مغلق'; end if;
   if t.reg_deadline is not null and now() > t.reg_deadline then raise exception 'انتهى موعد التسجيل'; end if;
   if t.team_size = 1 then p_p2 := null; end if;
   if p_p1 is null or not private.tour_eligible(p_p1) then raise exception 'اختر اسم اللاعب من الشجرة'; end if;
@@ -109,10 +109,10 @@ begin
   return jsonb_build_object('ok', true, 'id', new_id);
 end $$;
 
--- admin: join two players who registered alone into one team
+-- admin: join two players who registered alone into one team (the second entry is closed, not removed)
 create or replace function public.tournament_pair(p_a bigint, p_b bigint, p_team text)
 returns jsonb language plpgsql security definer set search_path = '' as $$
-declare a public.tournament_entries; b public.tournament_entries;
+declare a public.tournament_entries; b public.tournament_entries; who text;
 begin
   if not private.is_admin() then raise exception 'غير مصرح'; end if;
   select * into a from public.tournament_entries where id = p_a for update;
@@ -121,13 +121,11 @@ begin
      or a.kind <> 'solo' or b.kind <> 'solo' or a.status = 'rejected' or b.status = 'rejected' then
     raise exception 'اختر لاعبَين منفردَين من نفس البطولة';
   end if;
+  who := (select s.display_name from public.staff s where s.email = private.my_email());
   update public.tournament_entries set kind = 'team', p2_id = b.p1_id, phone2 = b.phone,
-    team_name = nullif(left(btrim(coalesce(p_team,'')),30),''), status = 'approved', decided_at = now(),
-    decided_by = (select s.display_name from public.staff s where s.email = private.my_email())
+    team_name = nullif(left(btrim(coalesce(p_team,'')),30),''), status = 'approved', decided_at = now(), decided_by = who
   where id = a.id;
-  delete from public.tournament_entries where id = b.id;
+  update public.tournament_entries set status = 'rejected', note = 'دُمج في فريق #' || a.id, decided_at = now(), decided_by = who
+  where id = b.id;
   return jsonb_build_object('ok', true);
 end $$;
-
-revoke all on function private.tour_eligible(bigint) from public;
-revoke execute on function public.tournament_pair(bigint,bigint,text) from anon;

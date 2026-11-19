@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>البطولات · شجرة العائلة</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Reem+Kufi:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="site.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<style>
+/* hub */
+.tlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.tc{display:flex;flex-direction:column;gap:12px;padding:20px;text-decoration:none;color:inherit}
+.tc:hover{border-color:var(--line2);box-shadow:0 8px 24px rgba(43,42,36,.06)}
+.tc .top{display:flex;align-items:center;gap:12px}
+.tc .ic{width:46px;height:46px;border-radius:14px;background:var(--olivebg);color:var(--olive2);display:flex;align-items:center;justify-content:center;flex:none}
+.tc b{font-family:'Reem Kufi',serif;font-size:21px;font-weight:600;display:block}
+.tc .sub{font-size:13.5px}
+.st-open{background:var(--olivebg);color:var(--olive2)}.st-closed{background:var(--goldbg);color:#6B4F14}.st-done{background:var(--soft);color:var(--muted)}.st-draft{background:var(--redbg);color:var(--red)}
+.draftbar{display:flex;gap:10px;align-items:center;margin:0 0 14px;padding:12px 14px;border-radius:14px;background:var(--redbg);color:var(--red);font-size:14px;font-weight:500}
+/* spotlight */
+.spot{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:26px;align-items:center;padding:24px}
+.dblock{width:118px;border-radius:20px;background:var(--olive);color:#fff;text-align:center;padding:14px 8px;display:flex;flex-direction:column;gap:2px}
+.dblock .wd{font-size:13px;opacity:.85}.dblock .dn{font-family:'Reem Kufi',serif;font-size:46px;font-weight:600;line-height:1}
+.dblock .mn{font-size:15px;font-weight:600}.dblock .hj{margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.25);font-size:12px;opacity:.9}
+.dblock.tbd{background:var(--soft);color:var(--muted);justify-content:center;min-height:118px;font-size:14px;font-weight:600;line-height:1.5}
+.spot h3{margin:8px 0 8px;font-family:'Reem Kufi',serif;font-size:clamp(24px,3.4vw,34px);font-weight:600;line-height:1.25}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;color:var(--muted);font-size:14.5px}.meta span{display:inline-flex;align-items:center;gap:7px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:22px;align-items:start;margin-top:22px}
+.grid.one{grid-template-columns:minmax(0,760px)}
+.card h2{margin:0;font-family:'Reem Kufi',serif;font-size:24px;font-weight:600}
+/* form */
+.reg{padding:24px;display:flex;flex-direction:column;gap:18px}
+.reg>.sub{margin:-12px 0 0;font-size:14px}
+.f{display:flex;flex-direction:column;gap:8px}
+.f>label,.f .lb{font-size:14px;font-weight:600}.opt{font-weight:400;color:var(--faint)}
+.hint{font-size:12.5px;color:var(--faint)}
+.err{font-size:13px;color:var(--red);font-weight:500}
+.inp{width:100%;min-height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line2);background:#fff;font:inherit;font-size:16px;color:var(--text)}
+.inp:focus{outline:none;border-color:var(--olive);box-shadow:0 0 0 3px var(--olivebg)}
+.inp.bad{border-color:var(--red)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg button{padding:12px 14px;border-radius:14px;border:1px solid var(--line2);background:var(--bg);cursor:pointer;text-align:right;display:flex;flex-direction:column;gap:2px}
+.seg button small{font-size:12.5px;color:var(--muted)}
+.seg button[aria-checked="true"]{border-color:var(--olive);background:var(--olivebg);box-shadow:inset 0 0 0 1px var(--olive)}
+.av{width:38px;height:38px;border-radius:50%;background:var(--goldbg);color:#6B4F14;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.picked{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;border:1px solid var(--olive);background:var(--olivebg)}
+.picked b,.sugg b{display:block;font-size:15px}.picked small,.sugg small{font-size:12.5px;color:var(--muted)}
+.picked .chg{margin-inline-start:auto;border:0;background:none;color:var(--olive);font-weight:600;cursor:pointer;font-size:13.5px;min-height:40px;padding:0 6px}
+.srch{position:relative}.srch svg{position:absolute;top:15px;right:14px;color:var(--faint);pointer-events:none}.srch .inp{padding-right:42px}
+.sugg{border:1px solid var(--line2);border-radius:14px;background:#fff;overflow:hidden}
+.sugg button{width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border:0;background:none;text-align:right;cursor:pointer;min-height:56px}
+.sugg button+button{border-top:1px solid var(--line)}
+.sugg button:hover,.sugg button:focus-visible{background:var(--soft)}
+.sugg button[disabled]{opacity:.55;cursor:not-allowed;background:none}
+.sugg .tk{margin-inline-start:auto;font-size:12px;color:var(--faint)}
+.sugg .none{padding:14px;color:var(--muted);font-size:14px}
+.btn.wide{width:100%;min-height:50px;font-size:16px}
+.btn[disabled]{opacity:.6;cursor:progress}
+.note2{margin:-8px 0 0;font-size:13px;color:var(--faint);text-align:center}
+.done{padding:30px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.done .ok{width:64px;height:64px;border-radius:50%;background:var(--olivebg);color:var(--olive2);display:flex;align-items:center;justify-content:center}
+.done h2{margin:0}.done p{margin:0;color:var(--muted);line-height:1.8}
+.side{display:flex;flex-direction:column;gap:22px}
+.info{padding:22px}.info ul{margin:12px 0 0;padding:0 18px 0 0;display:flex;flex-direction:column;gap:8px;color:var(--text);font-size:14.5px;line-height:1.75}
+.teams{padding:22px}.th{display:flex;align-items:baseline;gap:10px}.th .sub{margin-inline-start:auto}
+.teams ol{list-style:none;margin:10px 0 0;padding:0}
+.teams li{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.teams li:last-child{border-bottom:0}
+.teams .n{width:28px;height:28px;border-radius:9px;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--muted);flex:none}
+.tm{min-width:0}.tm b{display:block;font-size:15px}.tm small{font-size:12.5px;color:var(--muted)}
+.teams .badge{margin-inline-start:auto}.ok2{background:var(--olivebg);color:var(--olive2)}.wait{background:var(--goldbg);color:#6B4F14}
+.teams .empty{padding:18px 0 4px;color:var(--muted);font-size:14px}
+.teams .more{display:block;width:100%;margin-top:6px;border:0;background:none;color:var(--olive);font-weight:600;cursor:pointer;min-height:40px}
+.solo{margin-top:10px;padding:14px;border-radius:14px;background:var(--soft);display:flex;flex-direction:column;gap:10px}
+.solo small{font-size:12.5px;color:var(--muted)}.solo .chip{cursor:default;min-height:32px;font-size:13px}
+.others{margin-top:28px}
+@media (max-width:1020px){.grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:640px){.spot{grid-template-columns:auto minmax(0,1fr);padding:18px;gap:16px}.spot .btn{grid-column:1/-1}.dblock{width:92px}.dblock .dn{font-size:36px}.reg,.info,.teams{padding:18px}.tlist{grid-template-columns:1fr}}
+</style>
+<link rel="stylesheet" href="layout.css">
+<script src="layout.js" defer></script>
+</head>
+<body>
+<header class="hdr"><div class="in">
+<a class="logo" href="index.html" aria-label="الرئيسية"><span class="em"><svg width="28" height="28" viewBox="0 0 36 36" fill="none" stroke="#F7EFD9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 33V17"/><path d="M18 22l-6-5"/><path d="M18 19l6-5"/><circle cx="18" cy="9" r="4"/><circle cx="9" cy="14" r="3"/><circle cx="27" cy="11" r="3"/><path d="M11 33h14"/></svg></span><span class="tx"><b data-famt>شجرة العائلة</b><small>نسبٌ يُحفظ، ورحمٌ تُوصل</small></span></a>
+<nav class="nav" aria-label="أقسام الموقع"><a href="index.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M12 7.5v5M5 16.5V14h14v2.5M12 12.5V14"/></svg>النسب</a><a href="events.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>الفعاليات</a><a href="memories.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>الذكريات</a><a href="tournaments.html" class="on" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>البطولات</a></nav>
+<span class="sp"></span>
+<div class="today" aria-label="تاريخ اليوم"><b></b><span></span></div>
+<a class="hsearch" href="index.html#search" aria-label="ابحث عن فرد"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span>ابحث في العائلة…</span></a>
+<a class="hcta" href="index.html#suggest"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>اقترح إضافة</a>
+<a class="msearch" href="index.html#search" aria-label="ابحث عن فرد"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></a>
+</div></header>
+<section class="ayah mini" aria-roledescription="شريط آيات" aria-label="آيات في صلة الرحم">
+<div class="pat" aria-hidden="true"></div><div class="glow" aria-hidden="true"></div>
+<div class="in">
+<div class="frame"><div class="sheen" aria-hidden="true"></div>
+<div class="ttl"><i></i>صِلةُ الرَّحِم<i></i></div>
+<div class="verse" lang="ar"></div>
+<div class="ref"></div>
+</div>
+<div class="ctl"><button class="pp" type="button"></button><div class="dots"></div></div>
+</div>
+</section>
+
+<section class="hero" id="hero">
+<svg class="pat" aria-hidden="true" preserveAspectRatio="xMidYMid slice" viewBox="0 0 1400 360"><defs><pattern id="p" width="56" height="56" patternUnits="userSpaceOnUse"><path d="M28 6l6 16 16 6-16 6-6 16-6-16-16-6 16-6z" fill="none" stroke="#E6DCC3" stroke-width="1"/></pattern><radialGradient id="fade" cx="15%" cy="50%" r="70%"><stop offset="0" stop-color="#F6F1E7" stop-opacity="0"/><stop offset="1" stop-color="#F6F1E7" stop-opacity="1"/></radialGradient></defs><rect width="1400" height="360" fill="url(#p)"/><rect width="1400" height="360" fill="url(#fade)"/></svg>
+<div class="in" id="heroIn"><div><div class="eyebrow">بطولات العائلة</div><h1><em>البطولات</em></h1><p>جارٍ التحميل…</p></div></div>
+</section>
+
+<main class="wrap" id="app"><section class="card blank"><p>جارٍ التحميل…</p></section></main>
+
+<footer class="ftr">
+<div class="band" aria-hidden="true"></div>
+<div class="cols">
+<div class="brandcol">
+<a class="logo" href="index.html" aria-label="الرئيسية"><span class="em"><svg width="28" height="28" viewBox="0 0 36 36" fill="none" stroke="#F7EFD9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 33V17"/><path d="M18 22l-6-5"/><path d="M18 19l6-5"/><circle cx="18" cy="9" r="4"/><circle cx="9" cy="14" r="3"/><circle cx="27" cy="11" r="3"/><path d="M11 33h14"/></svg></span><span class="tx"><b data-famt>شجرة العائلة</b><small>نسبٌ يُحفظ، ورحمٌ تُوصل</small></span></a>
+<p class="about">مرجع العائلة لحفظ النسب وتوثيق الأجيال، وجمع الفعاليات والذكريات في مكان واحد يصل بين الكبير والصغير.</p>
+<blockquote class="hadith">«مَن أحبَّ أن يُبسَطَ له في رزقِه، ويُنسَأَ له في أثرِه، فليَصِلْ رَحِمَه»<small>متفق عليه</small></blockquote>
+</div>
+<nav aria-label="أقسام الموقع"><h4>أقسام الموقع</h4><ul>
+<li><a href="index.html"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>النسب والشجرة</a></li>
+<li><a href="events.html"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>الفعاليات والتقويم</a></li>
+<li><a href="memories.html"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>الذكريات والصور</a></li>
+<li><a href="tournaments.html"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>بطولات العائلة</a></li>
+</ul></nav>
+<nav aria-label="أدوات العائلة"><h4>أدوات العائلة</h4><ul>
+<li><a href="index.html#search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>ابحث عن فرد</a></li>
+<li><a href="index.html#kin"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/><path d="M9 12h6"/></svg>كيف نلتقي في النسب؟</a></li>
+<li><a href="events.html#subscribe"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>اشترك في تقويم العائلة</a></li>
+</ul></nav>
+<div><h4>شارك في التوثيق</h4>
+<div class="cbox">
+<p>لاحظت اسمًا ناقصًا أو معلومة تحتاج تصحيحًا؟ أرسل اقتراحك ويراجعه مشرفو العائلة.</p>
+<a class="fb" href="index.html#suggest"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>اقترح إضافة أو تصحيحًا</a>
+<a class="fb o" href="admin.html"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>دخول المشرفين</a>
+</div></div>
+</div>
+<div class="bot"><div class="frow">
+<span>© <span data-year></span> <span data-famt>شجرة العائلة</span> · جميع الحقوق محفوظة لأبناء العائلة</span>
+<span class="sp"></span>
+<button class="totop" type="button" data-totop><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>العودة للأعلى</button>
+</div></div>
+</footer>
+<nav class="tabbar" aria-label="التنقل السريع"><a href="index.html"><span class="ti"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M12 7.5v5M5 16.5V14h14v2.5M12 12.5V14"/></svg></span>النسب</a><a href="events.html"><span class="ti"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>الفعاليات</a><a href="memories.html"><span class="ti"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg></span>الذكريات</a><a href="index.html#suggest"><span class="ti"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>اقترح</a></nav>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="عرض الصورة">
+ <div class="tb"><span class="c" id="lbC"></span><a class="bt" id="lbDl" href="#" target="_blank" rel="noopener" aria-label="فتح الصورة بالحجم الكامل" title="الحجم الكامل"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg></a><button class="bt" type="button" data-lb="x" aria-label="إغلاق"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+ <div class="st" id="lbSt"><button class="bt nv p" type="button" data-lb="p" aria-label="السابقة"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button><img id="lbImg" alt=""><button class="bt nv n" type="button" data-lb="n" aria-label="التالية"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button></div>
+ <div class="cp" id="lbCp"></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<div id="mnt" hidden role="alert"><div class="box">
+<div class="seal"><svg width="52" height="52" viewBox="0 0 36 36" fill="none" stroke="#4F5D2F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 33V17"/><path d="M18 22l-6-5"/><path d="M18 19l6-5"/><circle cx="18" cy="9" r="4"/><circle cx="9" cy="14" r="3"/><circle cx="27" cy="11" r="3"/><path d="M11 33h14"/></svg></div>
+<span class="fam" data-famt>شجرة العائلة</span><h1>الموقع متوقف مؤقتًا</h1><p id="mntMsg"></p><span class="back" id="mntBack" hidden></span>
+<small>هل أنت مشرف؟ <a href="admin.html" style="color:#4F5D2F">سجّل دخولك للمتابعة</a>.</small>
+</div></div>
+<div id="adminBar" hidden>معاينة المدير · الموقع متوقف للزوار</div>
+
+<script>
+(async function(){
+const {SB, esc, D, toast} = window.FT;
+const app=document.getElementById('app'), hero=document.getElementById('heroIn');
+const TR='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>';
+const IC={
+  clock:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  pin:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+  search:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
+  check:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>'
+};
+const ST={open:['التسجيل مفتوح','st-open'],closed:['التسجيل مغلق','st-closed'],done:['انتهت البطولة','st-done'],draft:['مسودة — لا يراها إلا المدير','st-draft']};
+const norm=s=>String(s||'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/ ابن /g,' بن ').replace(/\s+/g,' ').trim();
+const fail=t=>{app.innerHTML=`<section class="card blank"><h2>${esc(t)}</h2><p>تحقق من اتصالك بالإنترنت ثم حدّث الصفحة.</p></section>`;};
+
+let site, by={}, LIST=[], T=null, E=[], ELIG=new Set();
+const tid=+(new URLSearchParams(location.search).get('t'))||null;
+try{
+  site=await window.FT.boot();
+  const [tr,ls]=await Promise.all([SB.rpc('get_public_tree'),SB.rpc('list_tournaments')]);
+  if(tr.error) throw tr.error; if(ls.error) throw ls.error;
+  (tr.data||[]).forEach(r=>by[r.id]={id:r.id,n:r.first_name,p:r.father_id||0});
+  LIST=ls.data||[];
+}catch(e){ fail('تعذّر تحميل البطولات'); return; }
+
+const anc=id=>{const r=[];let c=by[id],g=0;while(c&&g++<60){r.push(c.id);c=by[c.p];}return r;};
+const line=(id,k)=>by[id]?anc(id).slice(0,k||99).map(i=>by[i].n).join(' بن '):'—';
+const days=d=>Math.ceil((new Date(d)-Date.now())/86400000);
+document.title='البطولات · '+site.FAMT;
+
+function hub(){
+  hero.innerHTML=`<div><div class="eyebrow">${esc(site.FAMT)}</div><h1><em>البطولات</em></h1><p>بطولات العائلة في مكان واحد. اختر البطولة وسجّل فيها باسمك من الشجرة.</p></div>`;
+  if(!LIST.length){app.innerHTML=`<section class="card blank"><span style="color:#C9BC9C">${TR.replace(/22/g,'44')}</span><h2>لا توجد بطولات حاليًا</h2><p>عندما تُعلن بطولة جديدة ستظهر هنا ويمكنك التسجيل فيها.</p></section>`;return;}
+  app.innerHTML=`<div class="tlist">${LIST.map(cardOf).join('')}</div>`;
+}
+function cardOf(t){
+  const s=ST[t.status]||ST.open;
+  return `<a class="card tc" href="?t=${t.id}"><div class="top"><span class="ic">${TR}</span><span><b>${esc(t.title)}</b><span class="sub">${esc(t.game)} · ${t.team_size===1?'فردي':'فرق من لاعبَين'}</span></span></div>
+   <div class="meta"><span class="badge ${s[1]}">${s[0]}</span><span>${t.starts_at?esc(D.full(new Date(t.starts_at))):'الموعد يُعلن قريبًا'}</span><span>${t.count} ${t.team_size===1?'مشارك':'تسجيل'}</span></div></a>`;
+}
+
+async function loadOne(id){
+  const {data,error}=await SB.rpc('get_tournament',{p_id:id});
+  if(error) throw error;
+  if(!data) return false;
+  T=data.t; E=data.entries||[]; ELIG=new Set(data.eligible||[]);
+  return true;
+}
+
+// ---------- registration form state ----------
+const F={mode:'team',p1:null,p2:null,q1:'',q2:'',team:'',phone:'',err:{},busy:false,done:null};
+const pair=()=>T.team_size===2&&F.mode==='team';
+const taken=()=>{const s=new Set();E.forEach(e=>{s.add(e.p1);if(e.p2)s.add(e.p2);});return s;};
+
+function picker(k,label){
+  const id=F[k];
+  if(id) return `<div class="f"><span class="lb">${label}</span><div class="picked"><span class="av">${esc(by[id].n[0])}</span><span><b>${esc(line(id,4))}</b></span><button type="button" class="chg" data-chg="${k}">تغيير</button></div></div>`;
+  const q=k==='p1'?F.q1:F.q2;
+  return `<div class="f"><label for="q${k}">${label}</label><div class="srch">${IC.search}<input id="q${k}" class="inp ${F.err[k]?'bad':''}" type="search" autocomplete="off" placeholder="اكتب الاسم واسم الأب، مثل: محمد بن صالح" value="${esc(q)}" data-q="${k}" aria-describedby="e${k}"></div>
+   <div id="s${k}">${sugg(k,q)}</div>${F.err[k]?`<span class="err" id="e${k}">${esc(F.err[k])}</span>`:''}</div>`;
+}
+function sugg(k,q){
+  const nq=norm(q); if(nq.length<2) return '';
+  const tk=taken(), other=k==='p1'?F.p2:F.p1;
+  const hits=[...ELIG].filter(id=>by[id]&&id!==other).map(id=>({id,full:norm(line(id))})).filter(x=>x.full.startsWith(nq)||x.full.includes(' '+nq)||norm(by[x.id].n)===nq||x.full.includes(nq)).slice(0,6);
+  if(!hits.length) return `<div class="sugg"><div class="none">ما لقينا الاسم. اكتب الاسم الأول ثم اسم الأب. إذا اسمك غير موجود في الشجرة اطلب إضافته من الصفحة الرئيسية.</div></div>`;
+  return `<div class="sugg">${hits.map(h=>{const t=tk.has(h.id);return `<button type="button" data-pick="${k}:${h.id}" ${t?'disabled':''}><span class="av">${esc(by[h.id].n[0])}</span><span><b>${esc(line(h.id,2))}</b><small>${esc(line(h.id).split(' بن ').slice(2,5).join(' بن ')||'')}</small></span>${t?'<span class="tk">مسجّل</span>':''}</button>`;}).join('')}</div>`;
+}
+function form(){
+  if(F.done) return `<section class="card done" id="reg"><span class="ok">${IC.check}</span><h2>وصل تسجيلك</h2><p>${esc(F.done)}</p><p>يراجعه المنظمون ويظهر في القائمة بعد التأكيد.</p><button class="btn" type="button" data-act="again">تسجيل آخر</button></section>`;
+  const open=T.status==='open'||T.status==='draft';
+  const late=T.reg_deadline&&new Date(T.reg_deadline)<new Date();
+  if(!open||late) return `<section class="card done" id="reg"><h2>${T.status==='done'?'انتهت البطولة':'التسجيل مغلق'}</h2><p>${T.status==='done'?'شكرًا لكل من شارك.':'انتهى وقت التسجيل في هذه البطولة.'}</p></section>`;
+  const two=T.team_size===2;
+  return `<section class="card reg" id="reg"><h2>التسجيل في البطولة</h2><p class="sub">${two?'كل لاعب يختار اسمه من شجرة العائلة.':'اختر اسمك من شجرة العائلة.'}</p>
+   ${two?`<div class="f"><span class="lb" id="modeL">طريقة التسجيل</span><div class="seg" role="radiogroup" aria-labelledby="modeL">
+    <button type="button" role="radio" aria-checked="${F.mode==='team'}" data-mode="team"><b>فريق كامل</b><small>أنا وشريكي</small></button>
+    <button type="button" role="radio" aria-checked="${F.mode==='solo'}" data-mode="solo"><b>وحدي</b><small>رتّبوا لي شريكًا</small></button></div></div>`:''}
+   ${picker('p1',pair()?'اللاعب الأول':'اسمك')}
+   ${pair()?picker('p2','اللاعب الثاني (الشريك)'):''}
+   ${pair()?`<div class="f"><label for="tn">اسم الفريق <span class="opt">(اختياري)</span></label><input id="tn" class="inp" maxlength="30" value="${esc(F.team)}" autocomplete="off"></div>`:''}
+   <div class="f"><label for="ph">رقم الجوال</label><input id="ph" class="inp ${F.err.ph?'bad':''}" dir="ltr" inputmode="tel" autocomplete="tel" placeholder="05XXXXXXXX" value="${esc(F.phone)}" style="text-align:right" aria-describedby="hph eph"><span class="hint" id="hph">لا يظهر لأحد، يستخدمه المنظمون للتواصل وإرسال موعد مباراتك.</span>${F.err.ph?`<span class="err" id="eph">${esc(F.err.ph)}</span>`:''}</div>
+   ${F.err.all?`<span class="err" role="alert">${esc(F.err.all)}</span>`:''}
+   <button class="btn g wide" type="button" data-act="send" ${F.busy?'disabled':''}>${F.busy?'جارٍ الإرسال…':pair()?'سجّل الفريق':'سجّل'}</button>
+   <p class="note2">يراجع المنظمون التسجيل، ويظهر في القائمة بعد التأكيد.</p></section>`;
+}
+function side(){
+  const teams=E.filter(e=>e.kind==='team'), solos=E.filter(e=>e.kind==='solo');
+  const rules=String(T.rules||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  const two=T.team_size===2, lim=S.all?999:8;
+  return `<div class="side">
+   ${rules.length?`<section class="card info"><h2>قوانين البطولة</h2><ul>${rules.map(r=>`<li>${esc(r)}</li>`).join('')}</ul></section>`:''}
+   <section class="card teams"><div class="th"><h2>${two?'الفرق المسجّلة':'المشاركون'}</h2><span class="sub">${teams.length}</span></div>
+    ${teams.length?`<ol>${teams.slice(0,lim).map((e,i)=>`<li><span class="n">${i+1}</span><span class="tm"><b>${esc(two?(e.team_name||'فريق '+(i+1)):line(e.p1,2))}</b>${two?`<small>${esc(line(e.p1,2))} · ${esc(e.p2?line(e.p2,2):'')}</small>`:`<small>${esc(line(e.p1).split(' بن ').slice(2,4).join(' بن '))}</small>`}</span><span class="badge ${e.status==='approved'?'ok2':'wait'}">${e.status==='approved'?'مؤكد':'بانتظار المراجعة'}</span></li>`).join('')}</ol>
+     ${teams.length>lim?`<button class="more" type="button" data-act="all">عرض الكل (${teams.length})</button>`:''}`:`<div class="empty">لا يوجد تسجيل بعد. كن أول المسجّلين!</div>`}
+    ${solos.length?`<div class="solo"><b>يبحثون عن شريك</b><div class="chips">${solos.map(e=>`<span class="chip">${esc(line(e.p1,2))}</span>`).join('')}</div><small>سجّل وحدك وسيرتّب المنظمون الفرق قبل القرعة.</small></div>`:''}
+   </section></div>`;
+}
+const S={all:false};
+function view(){
+  const s=ST[T.status]||ST.open, d=T.starts_at?new Date(T.starts_at):null;
+  const teams=E.filter(e=>e.kind==='team'), solos=E.filter(e=>e.kind==='solo');
+  const players=teams.reduce((n,e)=>n+(e.p2?2:1),0)+solos.length;
+  const dl=T.reg_deadline&&T.status==='open'?days(T.reg_deadline):null;
+  hero.innerHTML=`<div><div class="eyebrow">بطولات العائلة · ${esc(T.game)}</div><h1><em>${esc(T.title)}</em></h1><p>${T.team_size===2?'سجّل فريقك من لاعبَين من أبناء العائلة، أو سجّل وحدك ونرتّب لك شريكًا.':'سجّل باسمك من شجرة العائلة.'} يراجع المنظمون التسجيل ويتواصلون معك على جوالك.</p></div>
+   <div class="stats"><div class="stat"><b>${teams.length}</b><span>${T.team_size===2?'فريقًا مسجّلًا':'مشاركًا'}</span></div>${T.team_size===2?`<div class="stat"><b>${players}</b><span>لاعبًا</span></div><div class="stat"><b>${solos.length}</b><span>يبحثون عن شريك</span></div>`:''}${dl!==null&&dl>=0?`<div class="stat"><b>${dl}</b><span>${dl===1?'يوم':'أيام'} على إغلاق التسجيل</span></div>`:''}</div>`;
+  const others=LIST.filter(x=>x.id!==T.id);
+  app.innerHTML=`${T.status==='draft'?`<div class="draftbar">${TR}<span>هذه البطولة مسودة: لا يراها إلا المدير. افتحها للتسجيل من لوحة التحكم عندما تكون جاهزة.</span></div>`:''}
+   <section class="card spot">
+    ${d?`<div class="dblock"><span class="wd">${esc(D.weekday(d))}</span><span class="dn">${esc(D.day(d))}</span><span class="mn">${esc(D.month(d))}</span><span class="hj">${esc(D.hijriShort(d))}</span></div>`:'<div class="dblock tbd">الموعد<br>يُعلن قريبًا</div>'}
+    <div><span class="badge ${s[1]}">${s[0]}${T.status==='open'&&T.reg_deadline?' حتى '+esc(D.day(new Date(T.reg_deadline))+' '+D.month(new Date(T.reg_deadline))):''}</span>
+     <h3>${esc(T.title)}</h3>
+     <div class="meta">${d?`<span>${IC.clock}${esc(D.time(d))}</span>`:''}${T.place?`<span>${IC.pin}${esc(T.place)}</span>`:''}<span>${TR.replace(/22/g,'16')}${esc(T.game)}${T.match_rule?' · '+esc(T.match_rule):''}</span></div></div>
+    ${T.status==='open'?'<a class="btn g" href="#reg">سجّل الآن</a>':''}
+   </section>
+   <div class="grid"><div id="formBox">${form()}</div>${side()}</div>
+   ${others.length?`<div class="others"><div class="sec-h"><h2>بطولات أخرى</h2></div><div class="tlist">${others.map(cardOf).join('')}</div></div>`:''}`;
+  bind();
+}
+function redrawForm(focus){
+  const box=document.getElementById('formBox'); if(!box) return;
+  box.innerHTML=form(); bind();
+  if(focus){const el=document.getElementById(focus); if(el){el.focus(); const v=el.value; el.setSelectionRange&&el.setSelectionRange(v.length,v.length);}}
+}
+function bind(){
+  document.querySelectorAll('[data-q]').forEach(el=>el.oninput=()=>{const k=el.dataset.q;F[k==='p1'?'q1':'q2']=el.value;delete F.err[k];document.getElementById('s'+k).innerHTML=sugg(k,el.value);});
+  const tn=document.getElementById('tn'); if(tn) tn.oninput=()=>F.team=tn.value;
+  const ph=document.getElementById('ph'); if(ph){ph.oninput=()=>{F.phone=ph.value;if(F.err.ph){delete F.err.ph;ph.classList.remove('bad');const e=document.getElementById('eph');if(e)e.remove();}};
+    ph.onblur=()=>{if(F.phone&&!phoneOk(F.phone)){F.err.ph='اكتب رقم جوال صحيح يبدأ بـ 05 (10 أرقام).';redrawForm();}};}
+}
+const toLat=s=>String(s||'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+function phoneOk(p){let d=toLat(p).replace(/\D/g,'');if(/^9665\d{8}$/.test(d))d='0'+d.slice(3);else if(/^5\d{8}$/.test(d))d='0'+d;return /^05\d{8}$/.test(d);}
+
+app.addEventListener('click',async e=>{
+  const t=e.target.closest('[data-pick],[data-chg],[data-mode],[data-act]'); if(!t) return;
+  const d=t.dataset;
+  if(d.pick){const [k,id]=d.pick.split(':');F[k]=+id;delete F.err[k];redrawForm(k==='p1'&&pair()&&!F.p2?'qp2':(k==='p1'&&!pair()?'ph':(k==='p2'?'tn':null)));return;}
+  if(d.chg){F[d.chg]=null;redrawForm('q'+d.chg);return;}
+  if(d.mode){F.mode=d.mode;if(d.mode==='solo')F.p2=null;redrawForm();return;}
+  if(d.act==='all'){S.all=true;view();return;}
+  if(d.act==='again'){Object.assign(F,{p1:null,p2:null,q1:'',q2:'',team:'',phone:'',err:{},done:null});redrawForm('qp1');return;}
+  if(d.act==='send'){
+    F.err={};
+    if(!F.p1)F.err.p1='اختر الاسم من القائمة التي تظهر عند الكتابة.';
+    if(pair()&&!F.p2)F.err.p2='اختر اسم شريكك من القائمة، أو اختر «وحدي».';
+    if(!phoneOk(F.phone))F.err.ph='اكتب رقم جوال صحيح يبدأ بـ 05 (10 أرقام).';
+    if(Object.keys(F.err).length){redrawForm(F.err.p1?'qp1':F.err.p2?'qp2':'ph');return;}
+    F.busy=true;redrawForm();
+    const {error}=await SB.rpc('tournament_register',{p_tid:T.id,p_p1:F.p1,p_p2:pair()?F.p2:null,p_team:pair()?F.team:null,p_phone:toLat(F.phone)});
+    F.busy=false;
+    if(error){F.err.all=error.message||'تعذّر الإرسال، حاول مرة ثانية.';redrawForm();return;}
+    F.done=pair()?`سجّلنا فريق ${line(F.p1,2)} و${line(F.p2,2)}.`:(T.team_size===2?`سجّلناك يا ${line(F.p1,2)}، وبنرتّب لك شريكًا.`:`سجّلناك يا ${line(F.p1,2)}.`);
+    try{await loadOne(T.id);}catch(_){}
+    view();document.getElementById('reg').scrollIntoView({block:'center'});
+  }
+});
+
+try{
+  if(tid||LIST.length===1){ if(!(await loadOne(tid||LIST[0].id))){ hub(); return; } view(); if(location.hash==='#reg'){const r=document.getElementById('reg');if(r)r.scrollIntoView();} }
+  else hub();
+}catch(e){ fail('تعذّر تحميل البطولة'); }
+})();
+</script>
+</body>
+</html>
